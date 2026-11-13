@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\LancamentoCompetencia;
+use App\Models\TarefaAgente;
 use App\Services\Lancamentos;
 use Illuminate\Http\Request;
 
@@ -19,7 +20,11 @@ class LancamentoController extends Controller
             }
         }
 
+        $ultima = TarefaAgente::where('tipo', 'importar_lancamentos')->latest('id')->limit(30)->get()
+            ->first(fn ($t) => ($t->payload['competencia'] ?? null) === $comp);
+
         return view('lancamentos.index', [
+            'importacao' => $ultima,
             'comp' => $comp, 'linhas' => $linhas, 'colunas' => Lancamentos::COLUNAS, 'erros' => $erros,
             'msg' => $msg, 'st' => LancamentoCompetencia::de($comp), 'tot' => $this->lancamentos->totais($linhas),
         ]);
@@ -61,6 +66,11 @@ class LancamentoController extends Controller
 
             return redirect()->route('lancamentos.index', ['comp' => $comp]);
         }
+        if ($request->input('acao') === 'enviar_dominio') {
+            abort_unless($st->fechada(), 409, 'Feche a competência antes de enviar para a Domínio.');
+
+            return $this->tela($comp, msg: $this->enfileirarImportacao($comp, $usuario));
+        }
         if ($st->fechada()) {
             return $this->tela($comp, msg: 'Competência fechada. Reabra para alterar.');
         }
@@ -72,9 +82,22 @@ class LancamentoController extends Controller
         if ($request->input('acao') === 'fechar') {
             $st->fill(['status' => 'fechada', 'por' => $usuario, 'em' => now()])->save();
 
-            return $this->tela($comp, msg: 'Lançamentos salvos e competência fechada.');
+            return $this->tela($comp, msg: 'Lançamentos salvos e competência fechada. '.$this->enfileirarImportacao($comp, $usuario));
         }
 
         return $this->tela($comp, msg: 'Lançamentos salvos.');
+    }
+
+    /** Coloca na fila do agente a importação do TXT na Domínio (uma por competência por vez). */
+    private function enfileirarImportacao(string $comp, string $usuario): string
+    {
+        $pendente = TarefaAgente::where('tipo', 'importar_lancamentos')->whereIn('status', ['pendente', 'executando'])
+            ->get()->first(fn ($t) => ($t->payload['competencia'] ?? null) === $comp);
+        if ($pendente) {
+            return 'A importação desta competência já está na fila do robô.';
+        }
+        TarefaAgente::enfileirar('importar_lancamentos', ['competencia' => $comp], $usuario);
+
+        return 'O robô vai importar os lançamentos na Domínio.';
     }
 }

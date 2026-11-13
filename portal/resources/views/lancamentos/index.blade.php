@@ -20,6 +20,19 @@
     {{ $bloqueado ? 'Fechada por '.$st->por.' em '.$st->em?->format('d/m/Y H:i') : 'Aberta para preenchimento' }}</span>
 </form>
 @if ($msg)<div class="msg {{ $erros ? 'erro' : 'ok' }}">{{ $msg }}</div>@endif
+@if ($importacao)
+  @php
+    $cor = ['concluida' => 'ok', 'erro' => 'erro'][$importacao->status] ?? '';
+    $txt = ['pendente' => 'Na fila do robô', 'executando' => 'O robô está importando na Domínio...',
+            'concluida' => 'Importado e gravado na Domínio', 'erro' => 'Erro na importação'][$importacao->status] ?? $importacao->status;
+  @endphp
+  <div class="msg {{ $cor }}">Domínio: <b>{{ $txt }}</b> · pedido por {{ $importacao->solicitado_por }} em {{ $importacao->created_at->format('d/m/Y H:i') }}
+    @if ($importacao->concluida_em) · concluído {{ $importacao->concluida_em->format('d/m/Y H:i') }}@endif
+    @if ($importacao->status === 'concluida' && ! empty($importacao->resultado['linhas'])) · {{ $importacao->resultado['linhas'] }} linhas @endif
+    @if ($importacao->status === 'erro')<br>{{ $importacao->mensagem }}@endif
+  </div>
+  @if (in_array($importacao->status, ['pendente', 'executando']))<meta http-equiv="refresh" content="10">@endif
+@endif
 
 <form method="post" action="{{ route('lancamentos.salvar') }}">@csrf
 <input type="hidden" name="comp" value="{{ $comp }}">
@@ -62,6 +75,7 @@
     <button class="btn ok" name="acao" value="fechar" onclick="return confirm('Fechar a competência {{ $comp }}? Depois de fechada, ninguém altera sem reabrir.')">Salvar e fechar competência</button>
   @else
     <button class="btn" name="acao" value="reabrir" onclick="return confirm('Reabrir a competência {{ $comp }} para alterações?')">Reabrir competência</button>
+    <button class="btn pri" name="acao" value="enviar_dominio" onclick="return confirm('Enviar os lançamentos de {{ $comp }} para o robô importar e gravar na Domínio?')">Enviar para a Domínio</button>
   @endunless
   <a class="btn" href="{{ route('lancamentos.txt', ['comp' => $comp]) }}"
      title="Arquivo no leiaute de importação de lançamentos da Domínio (empresa, rubricas e formato em Configurações)">⬇ Gerar TXT para a Domínio</a>

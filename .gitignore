@@ -24,6 +24,11 @@
 agente/estado.json
 agente/logs/
 agente/relatorios/
+agente/importacoes/
+*.txt
+!**/requirements.txt
+!portal/tests/Fixtures/*.txt
+!portal/public/robots.txt
 
 # ===== Ambientes / dependências =====
 agente/.venv/

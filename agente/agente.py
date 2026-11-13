@@ -139,7 +139,35 @@ def cadastrar_admissao(tarefa: dict) -> dict:
     return {"admissao_id": tarefa["payload"].get("admissao_id")}
 
 
-EXECUTORES = {"gerar_adiantamento": gerar_adiantamento, "cadastrar_admissao": cadastrar_admissao}
+def importar_txt(arquivo: Path, salvar: bool = True) -> None:
+    """Importa um TXT de lançamentos na Domínio (Utilitários > Importação > de Arquivo Texto > de Lançamentos)."""
+    import motor
+    roteiro = motor.carregar_roteiro(ROTEIRO)
+    _, jan = motor.janela_dominio(roteiro)
+    dados = {"arquivo_txt": str(arquivo.resolve())}
+    for i, passo in enumerate(roteiro["importar_lancamentos"], 1):
+        try:
+            motor.executar_passo(passo, dados, jan, salvar=salvar)
+        except Exception as e:
+            motor.print_tela(jan, PASTA_PDFS / f"erro_importacao_passo_{i}.png")
+            raise motor.ErroRoteiro(f"Importação de lançamentos, passo {i} ({passo.get('descricao') or passo['acao']}): {e}") from e
+
+
+def importar_lancamentos(tarefa: dict) -> dict:
+    import base64
+    p = tarefa["payload"]
+    if not p.get("linhas"):
+        raise RuntimeError("Nenhum lançamento para importar nesta competência. " + " ".join(p.get("avisos", [])))
+    pasta = BASE / "importacoes"
+    pasta.mkdir(exist_ok=True)
+    arquivo = pasta / p["arquivo"]
+    arquivo.write_bytes(base64.b64decode(p["txt_base64"]))
+    importar_txt(arquivo, salvar=True)
+    return {"linhas": p["linhas"], "competencia": p["competencia"], "avisos": p.get("avisos", [])}
+
+
+EXECUTORES = {"gerar_adiantamento": gerar_adiantamento, "cadastrar_admissao": cadastrar_admissao,
+              "importar_lancamentos": importar_lancamentos}
 
 
 def processar_tarefa() -> bool:
@@ -173,7 +201,13 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--uma-vez", action="store_true")
     ap.add_argument("--inspecionar", action="store_true")
+    ap.add_argument("--testar-importacao", metavar="ARQUIVO_TXT",
+                    help="importa o TXT até a prévia da Domínio e CANCELA (não grava)")
     a = ap.parse_args()
+    if a.testar_importacao:
+        importar_txt(Path(a.testar_importacao), salvar=False)
+        log("Teste de importação concluído: prévia aberta e cancelada, nada gravado.")
+        return
     if a.inspecionar:
         import motor
         _, jan = motor.janela_dominio()

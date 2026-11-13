@@ -356,5 +356,138 @@
       ],
       "descricao": "Fechar o relatorio"
     }
+  ],
+  "importar_lancamentos": [
+    {
+      "acao": "_comentario",
+      "descricao": "Utilitarios > Importacao > de Arquivo Texto > de Lancamentos. Campo: arquivo_txt (caminho do TXT). Validado na Dominio 10.6A."
+    },
+    {
+      "acao": "foco"
+    },
+    {
+      "acao": "menu",
+      "cliques": [
+        [
+          472,
+          52
+        ],
+        [
+          580,
+          515
+        ],
+        [
+          900,
+          517
+        ],
+        [
+          960,
+          540
+        ],
+        [
+          700,
+          542
+        ],
+        [
+          615,
+          542
+        ]
+      ],
+      "descricao": "Utilitarios > Importacao > de Arquivo Texto > de Lancamentos"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 3
+    },
+    {
+      "acao": "clicar_rel",
+      "janela": "Importação de lançamentos",
+      "x": 205,
+      "y": 50,
+      "descricao": "Campo Arquivo"
+    },
+    {
+      "acao": "tecla",
+      "tecla": "{HOME}+{END}"
+    },
+    {
+      "acao": "digitar",
+      "campo": "arquivo_txt",
+      "limpar": false,
+      "obrigatorio": true,
+      "depois": "{TAB}",
+      "descricao": "Caminho do TXT"
+    },
+    {
+      "acao": "combo",
+      "id": 1007,
+      "valor": "Horas minutos",
+      "descricao": "Lancamento de horas = Horas minutos"
+    },
+    {
+      "acao": "combo",
+      "id": 1009,
+      "valor": "Não importar",
+      "descricao": "Lancamentos existentes = Nao importar"
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "&Importar",
+      "descricao": "Importar"
+    },
+    {
+      "acao": "responder",
+      "titulo": "^Importa",
+      "texto": "sucesso",
+      "botao": "OK",
+      "timeout": 60,
+      "descricao": "OK em Importacao realizada com sucesso"
+    },
+    {
+      "acao": "erro_se_janela",
+      "titulo": "^(Importa|Aten|Erro|Aviso)",
+      "descricao": "Parar se a Dominio mostrar erro"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 2
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "&Gravar",
+      "grava": true,
+      "timeout": 15,
+      "descricao": "Gravar os lancamentos importados"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 3,
+      "grava": true
+    },
+    {
+      "acao": "responder",
+      "titulo": ".",
+      "texto": "sucesso|gravad|salv",
+      "botao": "&?OK|&?Sim",
+      "timeout": 8,
+      "grava": true,
+      "descricao": "Confirmar mensagem apos gravar (se houver)"
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "&Cancelar",
+      "so_teste": true,
+      "timeout": 10,
+      "descricao": "Modo teste: cancelar a previa"
+    },
+    {
+      "acao": "responder",
+      "titulo": "^Importa",
+      "texto": "n.o foram salvos",
+      "botao": "&N(a|ã)o",
+      "so_teste": true,
+      "timeout": 10,
+      "descricao": "Modo teste: nao salvar"
+    }
   ]
 }

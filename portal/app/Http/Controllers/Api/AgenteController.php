@@ -7,6 +7,7 @@ use App\Models\Admissao;
 use App\Models\Configuracao;
 use App\Models\Folha;
 use App\Models\TarefaAgente;
+use App\Services\DominioTxtLancamentos;
 use App\Services\FolhaService;
 use App\Services\FuncionarioSync;
 use App\Services\Notificador;
@@ -32,6 +33,16 @@ class AgenteController extends Controller
             $adm->update(['status' => 'cadastrando']);
             $adm->registrar('Robô iniciou o cadastro na Domínio');
             $payload['dados'] = $adm->dados;
+        }
+        if ($tarefa->tipo === 'importar_lancamentos') {
+            // o arquivo é gerado na hora da entrega, com os lançamentos atuais da competência
+            $r = app(DominioTxtLancamentos::class)->gerar($payload['competencia']);
+            $payload += [
+                'arquivo' => 'lancamentos_dominio_'.str_replace('/', '', $payload['competencia']).'.txt',
+                'txt_base64' => base64_encode($r['conteudo']),
+                'linhas' => $r['linhas'],
+                'avisos' => $r['avisos'],
+            ];
         }
 
         return response()->json(['id' => $tarefa->id, 'tipo' => $tarefa->tipo, 'payload' => $payload]);

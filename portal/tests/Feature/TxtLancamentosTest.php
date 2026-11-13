@@ -58,6 +58,27 @@ class TxtLancamentosTest extends TestCase
         $this->assertNotEmpty($r['avisos']);
     }
 
+    public function test_fechar_competencia_manda_para_o_robo_com_o_txt(): void
+    {
+        $this->actingAs(User::factory()->create(['name' => 'rh']));
+        config(['services.agente.token' => str_repeat('t', 64)]);
+        \App\Models\Funcionario::create(['codigo' => '7', 'nome' => 'MARIA EXEMPLO', 'ativo' => true]);
+
+        $this->post('/lancamentos', ['comp' => '11/2026', 'acao' => 'fechar', 'v' => ['7' => ['comissao' => '100,00']]])
+            ->assertSee('O robô vai importar');
+        $this->post('/lancamentos', ['comp' => '11/2026', 'acao' => 'enviar_dominio'])->assertSee('já está na fila');
+        $this->assertDatabaseCount('tarefas_agente', 1);
+
+        $t = $this->withHeader('Authorization', 'Bearer '.str_repeat('t', 64))->getJson('/api/agente/tarefas/proxima')
+            ->assertOk()->assertJsonPath('tipo', 'importar_lancamentos')->assertJsonPath('payload.linhas', 1)
+            ->assertJsonPath('payload.arquivo', 'lancamentos_dominio_112026.txt')->json();
+        $this->assertStringStartsWith('100000000007202611000000037', base64_decode($t['payload']['txt_base64']));
+
+        $this->getJson('/api/agente/tarefas/proxima');   // marca entregue
+        $this->postJson("/api/agente/tarefas/{$t['id']}/concluir", ['sucesso' => true, 'resultado' => ['linhas' => 1]]);
+        $this->get('/lancamentos?comp=11/2026')->assertSee('Importado e gravado na Domínio');
+    }
+
     public function test_download_pela_tela(): void
     {
         $this->actingAs(User::factory()->create());

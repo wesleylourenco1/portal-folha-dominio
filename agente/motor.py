@@ -114,6 +114,11 @@ def executar_passo(passo: dict, dados: dict, jan, salvar: bool) -> None:
 
     if acao.startswith("_"):                     # comentário / passo desativado
         return
+    if passo.get("grava") and not salvar:        # passo que grava na Domínio: pulado no modo teste
+        print(f"   (modo teste: pulado '{passo.get('descricao') or acao}')")
+        return
+    if passo.get("so_teste") and salvar:         # passo só do modo teste (ex.: cancelar a prévia)
+        return
     if acao not in ("esperar", "aguardar_fim", "responder", "salvar_como", "aguardar_janela"):
         try:                                     # outra janela (ex.: navegador) pode ter ficado por cima
             jan.set_focus()
@@ -183,7 +188,7 @@ def executar_passo(passo: dict, dados: dict, jan, salvar: bool) -> None:
         mouse.click(coords=(r.left + passo["x"], r.top + passo["y"]))
     elif acao == "clicar_botao":                 # botão pelo texto (ex.: "&Consultar"); "opcional": true ignora se não existir
         try:
-            _controle(jan, passo, class_name="Button", title=passo["titulo"]).click_input()
+            clicar(_controle(jan, passo, class_name="Button", title=passo["titulo"]))
         except ErroRoteiro:
             if not passo.get("opcional"):
                 raise
@@ -209,7 +214,7 @@ def executar_passo(passo: dict, dados: dict, jan, salvar: bool) -> None:
                             continue
                         botao = next(c for c in w.descendants() if c.class_name() == "Button"
                                      and re.fullmatch(passo["botao"], c.window_text() or ""))
-                        w.set_focus(); botao.click_input()
+                        clicar(botao)
                         fim = 0
                         break
                 except Exception:  # noqa: BLE001 - janela fechou durante a leitura
@@ -245,11 +250,31 @@ def executar_passo(passo: dict, dados: dict, jan, salvar: bool) -> None:
     time.sleep(pausa)
 
 
+def clicar(controle) -> None:
+    """Clica num botão mandando a mensagem direto para ele (BM_CLICK): não usa o mouse e funciona
+    mesmo com outra janela na frente. Se o controle não aceitar, cai para o clique físico."""
+    try:
+        if controle.class_name() == "Button":
+            controle.click()
+            return
+    except Exception:  # noqa: BLE001
+        pass
+    controle.click_input()
+
+
 def _controle(jan, passo: dict, **criterios):
-    """Controle visível dentro da janela da Domínio (ignora controles ocultos de telas atrás)."""
+    """Controle visível da Domínio. Procura primeiro nas janelas soltas do processo (diálogos e prévias,
+    como "Lançamentos importados") e depois dentro da janela principal."""
     fim = time.time() + passo.get("timeout", 10)
     while time.time() < fim:
-        for c in jan.descendants():
+        soltas = []
+        for w in janelas(jan.process_id()):
+            try:
+                if w.handle != jan.handle:
+                    soltas.extend(w.descendants())
+            except Exception:  # noqa: BLE001
+                continue
+        for c in soltas + jan.descendants():
             try:
                 if (("class_name" not in criterios or c.class_name() == criterios["class_name"])
                         and ("control_id" not in criterios or c.control_id() == criterios["control_id"])
