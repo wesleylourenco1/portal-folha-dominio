@@ -7,8 +7,8 @@
   <div class="card">
     <h2 style="margin-top:0">1. Documentos do funcionário</h2>
     <p style="color:var(--mut);margin-top:0">RG ou CNH, CPF, CTPS (ou CTPS digital), título de eleitor, comprovante de residência,
-      certidão de nascimento/casamento, PIS, reservista, dados bancários. PDF ou foto (JPG/PNG). Pode selecionar vários.</p>
-    <input type="file" name="documentos[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp">
+      certidão de nascimento/casamento, PIS, reservista, dados bancários. PDF ou foto (JPG/PNG), vários de uma vez ou tudo num <b>.zip</b> (o portal abre e pega os documentos, inclusive de subpastas).</p>
+    <input type="file" name="documentos[]" multiple required accept=".pdf,.jpg,.jpeg,.png,.webp,.zip">
   </div>
   <div class="card">
     <h2 style="margin-top:0">2. Dados do contrato (preenchidos pelo RH)</h2>

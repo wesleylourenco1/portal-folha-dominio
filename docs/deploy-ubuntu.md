@@ -30,6 +30,8 @@ cp .env.example .env
 php artisan key:generate
 ```
 
+No `php.ini` do FPM: `upload_max_filesize = 50M`, `post_max_size = 160M`, `max_file_uploads = 50` (zip de documentos).
+
 No `.env`: `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://portal.seudominio.com.br`,
 `DB_CONNECTION=mysql` + credenciais, `QUEUE_CONNECTION=database`, `SESSION_SECURE_COOKIE=true`
 e o `AGENTE_TOKEN` gerado com `php artisan portal:token-agente`.
@@ -48,7 +50,7 @@ server {
     server_name portal.seudominio.com.br;
     root /var/www/portal-folha-dominio/portal/public;
     index index.php;
-    client_max_body_size 25M;
+    client_max_body_size 160M;   # zip de documentos da admissão
     location / { try_files $uri $uri/ /index.php?$query_string; }
     location ~ \.php$ { include snippets/fastcgi-php.conf; fastcgi_pass unix:/run/php/php8.4-fpm.sock; }
     location ~ /\.(?!well-known) { deny all; }

@@ -27,22 +27,25 @@ class AdmissaoController extends Controller
     {
         $request->validate([
             'documentos' => 'required|array|min:1',
-            'documentos.*' => 'file|max:20480|mimes:pdf,jpg,jpeg,png,webp',
+            'documentos.*' => 'file|max:51200|mimes:pdf,jpg,jpeg,png,webp,zip',
         ]);
+        try {
+            $arquivos = \App\Support\Documentos::expandir($request->file('documentos'));
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['documentos' => $e->getMessage()])->withInput();
+        }
         $dados = [];
         foreach (CamposAdmissao::chaves('rh') as $c) {
             $dados[$c] = trim((string) $request->input($c, ''));
         }
         $dados['_teste'] = $request->boolean('teste') ? '1' : '';
         $adm = Admissao::create(['status' => 'extraindo', 'dados' => $dados, 'extracao' => [], 'criado_por' => $request->user()->id]);
-        foreach ($request->file('documentos') as $i => $arquivo) {
-            $adm->documentos()->create([
-                'nome_original' => $arquivo->getClientOriginalName(),
-                'caminho' => $arquivo->store("admissoes/{$adm->id}", 'local'),
-                'mime' => $arquivo->getMimeType(),
-            ]);
+        foreach ($arquivos as ['nome' => $nome, 'conteudo' => $conteudo, 'mime' => $mime]) {
+            $caminho = "admissoes/{$adm->id}/".\Illuminate\Support\Str::uuid().'.'.strtolower(pathinfo($nome, PATHINFO_EXTENSION));
+            Storage::disk('local')->put($caminho, $conteudo);
+            $adm->documentos()->create(['nome_original' => $nome, 'caminho' => $caminho, 'mime' => $mime]);
         }
-        $adm->registrar("Criada por {$request->user()->name} com ".count($request->file('documentos')).' documento(s)');
+        $adm->registrar("Criada por {$request->user()->name} com ".count($arquivos).' documento(s)');
         ExtrairDocumentos::dispatch($adm->id);
 
         return redirect()->route('admissoes.show', $adm);
