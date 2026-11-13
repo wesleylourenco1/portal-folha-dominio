@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Configuracao;
+use App\Services\DominioTxtLancamentos;
 use App\Services\ExtratorDocumentos;
 use App\Services\Notificador;
 use Illuminate\Http\Request;
@@ -12,13 +13,15 @@ class ConfiguracaoController extends Controller
     public const CHAVES = [
         'ia_provedor', 'ia_modelo', 'ia_chave',
         'smtp_servidor', 'smtp_porta', 'smtp_usuario', 'smtp_senha', 'smtp_remetente', 'email_destino',
+        'dominio_empresa_codigo', 'dominio_tipo_processo', 'dominio_formato_horas', 'dominio_rubrica_horas_extras',
+        'dominio_rubrica_faltas', 'dominio_rubrica_faltas_vr', 'dominio_rubrica_comissao', 'dominio_rubrica_desconto_vr',
     ];
 
     public function index(?string $mensagem = null, bool $erro = false)
     {
         $v = [];
         foreach (self::CHAVES as $c) {
-            $v[$c] = in_array($c, Configuracao::SEGREDOS, true) ? '' : Configuracao::ler($c, '');
+            $v[$c] = in_array($c, Configuracao::SEGREDOS, true) ? '' : Configuracao::ler($c, DominioTxtLancamentos::CONFIG[$c] ?? '');
         }
 
         return view('configuracoes', [

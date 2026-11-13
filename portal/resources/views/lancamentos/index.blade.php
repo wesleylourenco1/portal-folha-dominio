@@ -63,6 +63,8 @@
   @else
     <button class="btn" name="acao" value="reabrir" onclick="return confirm('Reabrir a competência {{ $comp }} para alterações?')">Reabrir competência</button>
   @endunless
+  <a class="btn" href="{{ route('lancamentos.txt', ['comp' => $comp]) }}"
+     title="Arquivo no leiaute de importação de lançamentos da Domínio (empresa, rubricas e formato em Configurações)">⬇ Gerar TXT para a Domínio</a>
 </div>
 </form>
 <p style="color:var(--mut);font-size:13px;margin-top:14px">Dias de falta: informe os dias do mês separados por vírgula (ex.: 5, 12, 20).

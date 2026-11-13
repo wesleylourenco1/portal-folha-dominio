@@ -34,6 +34,25 @@
   </div>
 
   <div class="card">
+    <h2 style="margin-top:0">Domínio — TXT de lançamentos</h2>
+    <p style="color:var(--mut);margin-top:0">Usado no botão "Gerar TXT para a Domínio" da tela de Lançamentos. Teste o arquivo numa competência de teste
+      antes de usar em produção (tipo de processo e formato das horas variam conforme a instalação).</p>
+    <div class="grid">
+      <div><label>Código da empresa na Domínio</label><input name="dominio_empresa_codigo" value="{{ $v['dominio_empresa_codigo'] }}"></div>
+      <div><label>Tipo do processo (2 dígitos)</label><input name="dominio_tipo_processo" value="{{ $v['dominio_tipo_processo'] }}"></div>
+      <div><label>Formato das horas</label><select name="dominio_formato_horas">
+        <option value="hhmm" @selected($v['dominio_formato_horas'] === 'hhmm')>18:14 → 18,14 (horas e minutos)</option>
+        <option value="centesimal" @selected($v['dominio_formato_horas'] === 'centesimal')>18:14 → 18,23 (centesimal)</option>
+      </select></div>
+      <div><label>Rubrica horas extras</label><input name="dominio_rubrica_horas_extras" value="{{ $v['dominio_rubrica_horas_extras'] }}"></div>
+      <div><label>Rubrica dias de falta</label><input name="dominio_rubrica_faltas" value="{{ $v['dominio_rubrica_faltas'] }}"></div>
+      <div><label>Rubrica falta VR (vazio = não exporta)</label><input name="dominio_rubrica_faltas_vr" value="{{ $v['dominio_rubrica_faltas_vr'] }}"></div>
+      <div><label>Rubrica comissão</label><input name="dominio_rubrica_comissao" value="{{ $v['dominio_rubrica_comissao'] }}"></div>
+      <div><label>Rubrica desconto VR</label><input name="dominio_rubrica_desconto_vr" value="{{ $v['dominio_rubrica_desconto_vr'] }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
     <h2 style="margin-top:0">Agente da Domínio</h2>
     <p style="color:var(--mut);margin:0">O agente (máquina ou VM com a Domínio) se conecta ao portal com o <code>AGENTE_TOKEN</code> do arquivo <code>.env</code>
       — gere com <code>php artisan portal:token-agente</code>. Usuário e senha da Domínio ficam só na máquina do agente.</p>

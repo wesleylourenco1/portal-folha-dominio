@@ -33,6 +33,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/lancamentos', [LancamentoController::class, 'index'])->name('lancamentos.index');
     Route::post('/lancamentos', [LancamentoController::class, 'salvar'])->name('lancamentos.salvar');
+    Route::get('/lancamentos/txt', [LancamentoController::class, 'txt'])->name('lancamentos.txt');
 
     Route::get('/funcionarios', [FuncionarioController::class, 'index'])->name('funcionarios.index');
     Route::post('/funcionarios/{funcionario}', [FuncionarioController::class, 'update'])->name('funcionarios.update');

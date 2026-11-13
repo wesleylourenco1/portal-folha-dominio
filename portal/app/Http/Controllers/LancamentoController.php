@@ -32,6 +32,23 @@ class LancamentoController extends Controller
         return $this->tela($comp);
     }
 
+    /** Arquivo texto no leiaute de importação de lançamentos da Domínio. */
+    public function txt(Request $request, \App\Services\DominioTxtLancamentos $gerador)
+    {
+        $request->validate(['comp' => ['required', 'regex:/^\d{2}\/\d{4}$/']]);
+        $comp = $request->query('comp');
+        $r = $gerador->gerar($comp);
+        if ($r['linhas'] === 0) {
+            return $this->tela($comp, msg: 'Nenhum lançamento para gerar o arquivo nesta competência.');
+        }
+        $nome = 'lancamentos_dominio_'.str_replace('/', '', $comp).'.txt';
+
+        return response($r['conteudo'], 200, [
+            'Content-Type' => 'text/plain; charset=windows-1252',
+            'Content-Disposition' => "attachment; filename=\"{$nome}\"",
+        ]);
+    }
+
     public function salvar(Request $request)
     {
         $request->validate(['comp' => ['required', 'regex:/^\d{2}\/\d{4}$/']]);
