@@ -84,15 +84,39 @@ class Br
         if (! empty($d['pis']) && ! self::pisValido($d['pis'])) {
             $erros['pis'] = 'PIS/NIS com dígito verificador inválido';
         }
-        foreach (['data_nascimento', 'data_admissao', 'rg_data_emissao', 'ctps_data_emissao'] as $campo) {
+        foreach (['data_nascimento', 'data_admissao', 'rg_data_emissao', 'ctps_data_emissao', 'cnh_validade'] as $campo) {
             if (! empty($d[$campo]) && ! self::dataValida($d[$campo])) {
-                $erros[$campo] = 'Use o formato DD/MM/AAAA';
+                $erros[$campo] = 'Data inválida (DD/MM/AAAA)';
             }
         }
+        $opcoes = array_map('mb_strtoupper', CamposAdmissao::OPCOES['raca_cor']);
+        if (! empty($d['raca_cor']) && ! in_array(mb_strtoupper($d['raca_cor']), $opcoes, true)) {
+            $erros['raca_cor'] = 'Escolha uma opção da lista';
+        }
+        $erros += self::validarExperiencia($d);
         foreach (['nome', 'cpf', 'data_nascimento', 'data_admissao', 'cargo', 'salario'] as $obrigatorio) {
             if (empty($d[$obrigatorio])) {
                 $erros[$obrigatorio] ??= 'Campo obrigatório';
             }
+        }
+
+        return $erros;
+    }
+
+    /** Experiência e prorrogação: números inteiros e soma até 90 dias (CLT, art. 445, parágrafo único). */
+    public static function validarExperiencia(array $d): array
+    {
+        $max = CamposAdmissao::EXPERIENCIA_MAX;
+        $erros = [];
+        foreach (['experiencia_dias', 'experiencia_prorrogacao_dias'] as $campo) {
+            $v = (string) ($d[$campo] ?? '');
+            if ($v !== '' && (! ctype_digit($v) || (int) $v < 1 || (int) $v > $max)) {
+                $erros[$campo] = "Informe um número de dias entre 1 e {$max}";
+            }
+        }
+        $soma = (int) ($d['experiencia_dias'] ?? 0) + (int) ($d['experiencia_prorrogacao_dias'] ?? 0);
+        if (! $erros && $soma > $max) {
+            $erros['experiencia_prorrogacao_dias'] = "Experiência + prorrogação = {$soma} dias; o limite é {$max} (CLT, art. 445)";
         }
 
         return $erros;

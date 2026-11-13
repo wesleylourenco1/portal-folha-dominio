@@ -66,6 +66,53 @@ class CamposAdmissao
         ['Contrato', 'observacoes', 'Observações', 'rh'],
     ];
 
+    /** Tipo de entrada de cada campo (o padrão é texto livre). */
+    public const TIPOS = [
+        'data_nascimento' => 'data', 'data_admissao' => 'data', 'rg_data_emissao' => 'data',
+        'ctps_data_emissao' => 'data', 'cnh_validade' => 'data',
+        'raca_cor' => 'lista', 'sexo' => 'lista',
+        'experiencia_dias' => 'numero', 'experiencia_prorrogacao_dias' => 'numero',
+    ];
+
+    /** Opções das listas (raça/cor conforme a tabela do eSocial). */
+    public const OPCOES = [
+        'raca_cor' => ['Branca', 'Preta', 'Parda', 'Amarela', 'Indígena', 'Não informado'],
+        'sexo' => ['M', 'F'],
+    ];
+
+    /** Limite da CLT (art. 445, parágrafo único): experiência + prorrogação até 90 dias. */
+    public const EXPERIENCIA_MAX = 90;
+
+    public static function tipo(string $campo): string
+    {
+        return self::TIPOS[$campo] ?? 'texto';
+    }
+
+    /** Valor vindo do formulário -> como é guardado (datas sempre DD/MM/AAAA). */
+    public static function normalizar(string $campo, ?string $valor): string
+    {
+        $v = trim((string) $valor);
+        if (self::tipo($campo) === 'data' && preg_match('/^(\d{4})-(\d{2})-(\d{2})$/', $v, $m)) {
+            return "{$m[3]}/{$m[2]}/{$m[1]}";
+        }
+        if (self::tipo($campo) === 'numero') {
+            return preg_replace('/\D/', '', $v);
+        }
+
+        return $v;
+    }
+
+    /** Valor guardado -> valor do campo HTML (input date usa AAAA-MM-DD). */
+    public static function paraInput(string $campo, ?string $valor): string
+    {
+        $v = (string) $valor;
+        if (self::tipo($campo) === 'data' && preg_match('/^(\d{2})\/(\d{2})\/(\d{4})$/', $v, $m)) {
+            return "{$m[3]}-{$m[2]}-{$m[1]}";
+        }
+
+        return $v;
+    }
+
     public static function chaves(?string $origem = null): array
     {
         return array_values(array_map(fn ($c) => $c[1],

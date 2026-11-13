@@ -36,7 +36,10 @@ class AdmissaoController extends Controller
         }
         $dados = [];
         foreach (CamposAdmissao::chaves('rh') as $c) {
-            $dados[$c] = trim((string) $request->input($c, ''));
+            $dados[$c] = CamposAdmissao::normalizar($c, $request->input($c));
+        }
+        if ($erros = Br::validarExperiencia($dados)) {
+            return back()->withErrors($erros)->withInput();
         }
         $dados['_teste'] = $request->boolean('teste') ? '1' : '';
         $adm = Admissao::create(['status' => 'extraindo', 'dados' => $dados, 'extracao' => [], 'criado_por' => $request->user()->id]);
@@ -69,7 +72,7 @@ class AdmissaoController extends Controller
         abort_unless(in_array($admissao->status, Admissao::EDITAVEIS, true), 409, 'Esta admissão não pode ser editada agora.');
         $dados = [];
         foreach (CamposAdmissao::chaves() as $c) {
-            $dados[$c] = trim((string) $request->input($c, ''));
+            $dados[$c] = CamposAdmissao::normalizar($c, $request->input($c));
         }
         $dados['_teste'] = $admissao->dados['_teste'] ?? '';
         $usuario = $request->user()->name;

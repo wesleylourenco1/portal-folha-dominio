@@ -25,12 +25,8 @@
       @foreach ($campos as [$secao, $campo, $rotulo, $origem])
         @continue($origem !== 'rh')
         <div><label for="{{ $campo }}">{{ $rotulo }}</label>
-          @if ($campo === 'observacoes')
-            <textarea name="{{ $campo }}" id="{{ $campo }}" rows="2">{{ old($campo) }}</textarea>
-          @else
-            <input name="{{ $campo }}" id="{{ $campo }}" value="{{ old($campo) }}"
-              @if ($campo === 'data_admissao') placeholder="DD/MM/AAAA" @elseif ($campo === 'salario') placeholder="0,00" @endif>
-          @endif
+          @include('admissoes._campo', ['campo' => $campo, 'valor' => \App\Support\CamposAdmissao::normalizar($campo, old($campo))])
+          @error($campo)<div class="dica" style="color:var(--err)">{{ $message }}</div>@enderror
         </div>
       @endforeach
     </div>
@@ -55,4 +51,5 @@
     }
   });
 </script>
+@include('admissoes._experiencia_js')
 @endsection

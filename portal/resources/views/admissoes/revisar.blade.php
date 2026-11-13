@@ -27,7 +27,7 @@
     @endif
     <div class="{{ isset($erros[$campo]) ? 'erro' : (in_array($campo, $incertos) ? 'incerto' : '') }}">
       <label for="{{ $campo }}">{{ $rotulo }}</label>
-      <input name="{{ $campo }}" id="{{ $campo }}" value="{{ $adm->dados[$campo] ?? '' }}" @unless ($editavel) readonly @endunless>
+      @include('admissoes._campo', ['campo' => $campo, 'valor' => $adm->dados[$campo] ?? '', 'somenteLeitura' => ! $editavel])
       @if (isset($erros[$campo]))<div class="dica">{{ $erros[$campo] }}</div>
       @elseif (in_array($campo, $incertos))<div class="dica">Leitura duvidosa: confira no documento</div>@endif
     </div>
@@ -62,4 +62,5 @@
 </div>
 
 <div class="card"><h2 style="margin-top:0">Histórico</h2><pre>{{ $adm->log }}</pre></div>
+@include('admissoes._experiencia_js')
 @endsection
