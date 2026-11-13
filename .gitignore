@@ -1,0 +1,36 @@
+# ===== Segredos — NUNCA versionar =====
+.env
+.env.*
+!.env.example
+**/.env
+**/.env.*
+!**/.env.example
+*.key
+*.pem
+
+# ===== Dados reais de clientes — NUNCA versionar =====
+*.pdf
+*.xlsx
+*.xls
+*.csv
+*.sqlite
+*.sqlite3
+*.db
+*.png
+*.jpg
+*.jpeg
+*.webp
+!docs/img/*.png
+agente/estado.json
+agente/logs/
+agente/relatorios/
+
+# ===== Ambientes / dependências =====
+agente/.venv/
+**/__pycache__/
+*.pyc
+.vscode/
+.idea/
+.claude/
+Thumbs.db
+.DS_Store

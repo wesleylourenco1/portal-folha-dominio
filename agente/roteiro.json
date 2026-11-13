@@ -1,0 +1,360 @@
+{
+  "_leia": "Roteiros de automação da Domínio Folha. Mapeados na versão 10.6A, tela 1440x900, Domínio maximizada. Ajuste coordenadas e passos para a sua instalação (python agente.py --inspecionar ajuda a achar os controles).",
+  "login": [
+    {
+      "acao": "aguardar_janela",
+      "titulo": "Dom[ií]nio|Login|Conex",
+      "timeout": 60,
+      "descricao": "Esperar a tela de login (ajustar titulo)"
+    },
+    {
+      "acao": "digitar",
+      "campo": "dominio_usuario",
+      "depois": "{TAB}",
+      "descricao": "Usuario"
+    },
+    {
+      "acao": "digitar",
+      "campo": "dominio_senha",
+      "depois": "{ENTER}",
+      "descricao": "Senha"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 15,
+      "descricao": "Aguardar a Dominio carregar"
+    },
+    {
+      "acao": "erro_se_janela",
+      "titulo": "(Senha|Usu[aá]rio).*(inv[aá]lid|incorret)",
+      "descricao": "Login recusado"
+    }
+  ],
+  "executar_rotina_adiantamento": [
+    {
+      "acao": "_comentario",
+      "descricao": "Executa a Rotina Automatica da Dominio ADIANTAMENTO AUTOMATICO DIA 15 (3a linha da lista). Consignados -> calculo 40% -> Extrato e Liquidos em PDF na pasta dados/relatorios_dominio."
+    },
+    {
+      "acao": "foco"
+    },
+    {
+      "acao": "menu",
+      "cliques": [
+        [
+          301,
+          52
+        ],
+        [
+          336,
+          753
+        ]
+      ],
+      "descricao": "Processos > Rotinas Automaticas"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 4
+    },
+    {
+      "acao": "clicar_rel",
+      "janela": "Rotinas Automáticas",
+      "x": 185,
+      "y": 127,
+      "descricao": "Selecionar ADIANTAMENTO AUTOMATICO DIA 15 (3a linha)"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 1
+    },
+    {
+      "acao": "clicar_rel",
+      "janela": "Rotinas Automáticas",
+      "x": 62,
+      "y": 442,
+      "descricao": "Executar"
+    },
+    {
+      "acao": "responder",
+      "titulo": "^Aten",
+      "texto": "erros e avisos",
+      "botao": "&?N(a|ã)o",
+      "timeout": 900,
+      "descricao": "Aguardar o fim e nao abrir o relatorio de avisos"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 2
+    },
+    {
+      "acao": "clicar_rel",
+      "janela": "Rotinas Automáticas",
+      "x": 604,
+      "y": 442,
+      "timeout": 5,
+      "descricao": "Fechar a lista de rotinas"
+    }
+  ],
+  "cadastro_admissao": [
+    {
+      "acao": "_comentario",
+      "descricao": "A MAPEAR: Arquivo > Empregados > Novo e preenchimento dos campos (use acoes digitar/texto_controle com os campos da admissão: nome, cpf, data_nascimento, data_admissao, cargo_codigo, salario...)."
+    }
+  ],
+  "adiantamento_manual": [
+    {
+      "acao": "_comentario",
+      "descricao": "MAPEADO em 13/11/2026 na Dominio Folha 10.6A (maximizada, 1440x900, empresa 1 aberta). Requer o modulo Folha aberto."
+    },
+    {
+      "acao": "foco"
+    },
+    {
+      "acao": "menu",
+      "cliques": [
+        [
+          301,
+          52
+        ],
+        [
+          345,
+          465
+        ],
+        [
+          700,
+          467
+        ],
+        [
+          817,
+          467
+        ]
+      ],
+      "descricao": "Processos > Emprestimo Consignado > Credito do Trabalhador - Consulta e Importacao via API"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 3
+    },
+    {
+      "acao": "texto_controle",
+      "id": 1001,
+      "campo": "competencia",
+      "formato": "digitos",
+      "descricao": "Competencia dos consignados"
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "&Consultar",
+      "descricao": "Consultar/importar via API"
+    },
+    {
+      "acao": "responder",
+      "titulo": "^Aviso$",
+      "botao": "OK",
+      "timeout": 60,
+      "descricao": "OK na mensagem de importacao"
+    },
+    {
+      "acao": "responder",
+      "titulo": "^Aten",
+      "texto": "inconsist",
+      "botao": "&N(a|ã)o",
+      "timeout": 8,
+      "descricao": "Nao abrir relatorio de inconsistencias"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 2
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "Gravar",
+      "timeout": 15,
+      "descricao": "Gravar os consignados importados"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 3
+    },
+    {
+      "acao": "responder",
+      "titulo": ".",
+      "texto": "sucesso|gravad",
+      "botao": "OK",
+      "timeout": 8,
+      "descricao": "OK se houver confirmacao"
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "&Fechar",
+      "timeout": 10,
+      "descricao": "Fechar a tela de consignados"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 2
+    },
+    {
+      "acao": "menu",
+      "cliques": [
+        [
+          301,
+          52
+        ],
+        [
+          301,
+          80
+        ]
+      ],
+      "descricao": "Processos > Calculo"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 3
+    },
+    {
+      "acao": "texto_controle",
+      "id": 1027,
+      "campo": "competencia",
+      "formato": "digitos",
+      "descricao": "Mes/Ano"
+    },
+    {
+      "acao": "combo",
+      "id": 1026,
+      "valor": "Adiantamento",
+      "descricao": "Tipo da folha = Adiantamento (percentual padrao da empresa)"
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "Calcula&r",
+      "descricao": "Calcular"
+    },
+    {
+      "acao": "aguardar_fim",
+      "titulo": "^C[aá]lculo da folha$",
+      "timeout": 600,
+      "descricao": "Aguardar o calculo"
+    },
+    {
+      "acao": "responder",
+      "titulo": "^C[aá]lculo$",
+      "texto": "dados calculados",
+      "botao": "&?N(a|ã)o",
+      "timeout": 120,
+      "descricao": "Nao abrir os dados calculados"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 3
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "Fechar",
+      "timeout": 8,
+      "opcional": true,
+      "descricao": "Fechar avisos do calculo (se houver)"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 2
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "&Fechar",
+      "timeout": 5,
+      "opcional": true,
+      "descricao": "Fechar a tela de calculo (se ainda aberta)"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 2
+    },
+    {
+      "acao": "menu",
+      "cliques": [
+        [
+          388,
+          52
+        ],
+        [
+          400,
+          79
+        ],
+        [
+          742,
+          79
+        ],
+        [
+          742,
+          103
+        ]
+      ],
+      "descricao": "Relatorios > Folha > Extrato"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 3
+    },
+    {
+      "acao": "texto_controle",
+      "id": 1009,
+      "campo": "competencia",
+      "formato": "digitos",
+      "descricao": "Competencia inicial"
+    },
+    {
+      "acao": "texto_controle",
+      "id": 1010,
+      "campo": "competencia",
+      "formato": "digitos",
+      "descricao": "Competencia final"
+    },
+    {
+      "acao": "combo",
+      "id": 1008,
+      "valor": "Adiantamento",
+      "descricao": "Tipo da folha = Adiantamento"
+    },
+    {
+      "acao": "clicar_botao",
+      "titulo": "&OK",
+      "descricao": "Emitir o extrato"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 10,
+      "descricao": "Aguardar o relatorio desenhar"
+    },
+    {
+      "acao": "menu",
+      "cliques": [
+        [
+          33,
+          348
+        ]
+      ],
+      "descricao": "Botao PDF da barra lateral do relatorio"
+    },
+    {
+      "acao": "salvar_como",
+      "titulo": "Salvar em PDF",
+      "campo": "arquivo_extrato",
+      "descricao": "Salvar o extrato em PDF"
+    },
+    {
+      "acao": "esperar",
+      "segundos": 8
+    },
+    {
+      "acao": "menu",
+      "cliques": [
+        [
+          51,
+          139
+        ]
+      ],
+      "descricao": "Fechar o relatorio"
+    }
+  ]
+}

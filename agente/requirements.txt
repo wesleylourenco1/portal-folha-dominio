@@ -1,0 +1,4 @@
+pywinauto==0.6.9
+pywin32>=306
+requests>=2.32
+pillow>=10
