@@ -74,6 +74,10 @@ php artisan serve
 php artisan queue:work                           # em outro terminal: leitura dos documentos com IA
 ```
 
+> **Windows:** o PHP instalado pelo winget não traz certificados de CA — sem eles as chamadas HTTPS (IA, e-mail) falham com
+> `cURL error 60`. Aponte `curl.cainfo` e `openssl.cafile` no `php.ini` para um `cacert.pem` (ex.: o do pacote Python `certifi`
+> ou o de https://curl.se/docs/caextract.html). No Ubuntu isso já vem configurado.
+
 Testes: `php artisan test` (unitários + feature, com extrato fictício em `portal/tests/Fixtures`).
 
 Produção em Ubuntu (Nginx + PHP-FPM + MySQL/PostgreSQL + Let's Encrypt + fila como serviço): [docs/deploy-ubuntu.md](docs/deploy-ubuntu.md).
