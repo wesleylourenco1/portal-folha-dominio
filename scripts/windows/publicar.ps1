@@ -19,8 +19,9 @@ New-Item -ItemType Directory -Force $tmp | Out-Null
 $utf8 = New-Object System.Text.UTF8Encoding($false)
 
 function Remoto([string]$comando, [switch]$Interativo) {
-    $extra = if ($Interativo) { @('-t') } else { @() }
-    & ssh @ssh @extra $Servidor $comando
+    # -n: não lê o teclado (senão o ssh fica preso no terminal); -t: terminal para o sudo pedir a senha
+    $args2 = @($ssh) + @($(if ($Interativo) { '-t' } else { '-n' })) + @($Servidor, $comando)
+    & ssh $args2
     if ($LASTEXITCODE -ne 0) { throw "Comando no servidor falhou (código $LASTEXITCODE)." }
 }
 function Enviar([string]$local, [string]$remoto) {
