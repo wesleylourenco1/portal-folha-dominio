@@ -53,6 +53,12 @@
   </div>
 
   <div class="card">
+    <h2 style="margin-top:0">Conta Azul</h2>
+    <p style="color:var(--mut);margin-top:0">Lança o líquido de cada folha (adiantamento e mensal) como conta a pagar.</p>
+    <a class="btn" href="{{ route('contaazul') }}">Configurar Conta Azul →</a>
+  </div>
+
+  <div class="card">
     <h2 style="margin-top:0">Agente da Domínio</h2>
     <p style="color:var(--mut);margin:0">O agente (máquina ou VM com a Domínio) se conecta ao portal com o <code>AGENTE_TOKEN</code> do arquivo <code>.env</code>
       — gere com <code>php artisan portal:token-agente</code>. Usuário e senha da Domínio ficam só na máquina do agente.</p>

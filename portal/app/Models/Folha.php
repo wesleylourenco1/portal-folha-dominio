@@ -7,10 +7,37 @@ use Illuminate\Support\Facades\Storage;
 
 class Folha extends Model
 {
-    protected $fillable = ['competencia', 'empresa_codigo', 'empresa_nome', 'cnpj', 'calculo', 'dados', 'origem', 'importado_por'];
+    protected $fillable = ['competencia', 'empresa_codigo', 'empresa_nome', 'cnpj', 'calculo', 'dados', 'origem', 'importado_por',
+        'contaazul_id', 'contaazul_valor', 'contaazul_vencimento', 'contaazul_enviado_em', 'contaazul_enviado_por'];
 
     // salários e CPFs criptografados no banco
-    protected $casts = ['dados' => 'encrypted:array'];
+    protected $casts = ['dados' => 'encrypted:array', 'contaazul_enviado_em' => 'datetime', 'contaazul_valor' => 'float'];
+
+    /**
+     * Vencimento do pagamento (DD/MM/AAAA): adiantamento no dia configurado da competência;
+     * folha mensal no 5º dia útil do mês seguinte (CLT art. 459; sábado conta como dia útil).
+     */
+    public function vencimentoPagamento(): string
+    {
+        if ($v = $this->vencimento()) {
+            return $v;
+        }
+        [$mes, $ano] = array_map('intval', explode('/', $this->competencia));
+        $dia = mktime(0, 0, 0, $mes + 1, 1, $ano);
+        $uteis = 0;
+        while (true) {
+            $feriado = in_array(date('d/m', $dia), ['01/01', '21/04', '01/05', '07/09', '12/10', '02/11', '15/11', '20/11', '25/12'], true);
+            if (date('w', $dia) !== '0' && ! $feriado && ++$uteis === 5) {
+                return date('d/m/Y', $dia);
+            }
+            $dia = strtotime('+1 day', $dia);
+        }
+    }
+
+    public function descricaoContaAzul(): string
+    {
+        return ($this->ehAdiantamento() ? 'Adiantamento' : 'Folha').' '.$this->competencia.' - '.$this->empresa_nome;
+    }
 
     public function ehAdiantamento(): bool
     {

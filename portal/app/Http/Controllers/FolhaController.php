@@ -67,7 +67,10 @@ class FolhaController extends Controller
 
     public function show(Folha $folha)
     {
-        return view('folha.show', ['f' => $folha, 'd' => $folha->dados]);
+        $ca = app(\App\Services\ContaAzul::class);
+
+        return view('folha.show', ['f' => $folha, 'd' => $folha->dados,
+            'caConectado' => $ca->conectado(), 'caPendencias' => $ca->conectado() ? $ca->pendencias() : []]);
     }
 
     public function pdf(Request $request, Folha $folha, string $tipo)

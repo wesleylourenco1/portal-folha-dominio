@@ -76,6 +76,31 @@
 </div>
 
 <div class="card">
+  <h2 style="margin-top:0">Conta Azul</h2>
+  @if (session('mensagem'))<div class="msg ok">{{ session('mensagem') }}</div>@endif
+  @if ($f->contaazul_id)
+    <p style="margin:0"><span class="tag verde">Lançado</span> Conta a pagar de <b>R$ {{ Br::moeda($f->contaazul_valor) }}</b>
+      com vencimento <b>{{ $f->contaazul_vencimento }}</b>, enviada por {{ $f->contaazul_enviado_por }} em {{ $f->contaazul_enviado_em?->format('d/m/Y H:i') }}.</p>
+    @if (round($f->contaazul_valor, 2) !== round((float) $d['total_liquido'], 2))
+      <div class="msg erro" style="margin:10px 0 0">A folha foi reimportada e o líquido mudou (agora R$ {{ Br::moeda($d['total_liquido']) }}). Ajuste o valor direto no Conta Azul.</div>
+    @endif
+  @elseif (! $caConectado)
+    <p style="margin:0;color:var(--mut)">Conta Azul ainda não conectado. <a href="{{ route('contaazul') }}">Configurar</a></p>
+  @else
+    <form method="post" action="{{ route('folha.contaazul', $f) }}" style="display:flex;gap:10px;align-items:end;flex-wrap:wrap"
+          onsubmit="const b=this.querySelector('button');b.disabled=true;b.innerText='Enviando...';return confirm('Criar no Conta Azul a conta a pagar de R$ {{ Br::moeda($d['total_liquido']) }}?')">@csrf
+      <div><label>Descrição</label><input value="{{ $f->descricaoContaAzul() }}" disabled style="min-width:280px"></div>
+      <div><label>Valor (líquido total)</label><input value="R$ {{ Br::moeda($d['total_liquido']) }}" disabled></div>
+      <div><label>Vencimento</label><input type="date" name="vencimento" required
+        value="{{ \Carbon\Carbon::createFromFormat('d/m/Y', $f->vencimentoPagamento())->format('Y-m-d') }}"></div>
+      <button class="btn ok" @disabled($caPendencias)>Enviar para o Conta Azul</button>
+    </form>
+    @if ($caPendencias)<p class="dica" style="color:var(--err)">Falta escolher em <a href="{{ route('contaazul') }}">Conta Azul</a>: {{ implode(', ', $caPendencias) }}.</p>
+    @else<p class="dica" style="color:var(--mut)">Fornecedor: {{ \App\Models\Configuracao::ler('contaazul_fornecedor_nome', '—') }}. O portal não lança a mesma folha duas vezes.</p>@endif
+  @endif
+</div>
+
+<div class="card">
   <h2 style="margin-top:0">PDFs</h2>
   <div class="abas">
     <a class="btn ativo" href="{{ route('folha.pdf', [$f, 'liquidos']) }}" target="visor" onclick="ativa(this)">Relação de líquidos</a>

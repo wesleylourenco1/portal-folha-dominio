@@ -25,7 +25,8 @@ Ideias e próximos passos, em ordem aproximada de prioridade.
 - [ ] Faltas por tipo (injustificada / atestado com anexo / abonada) e regra de desconto do VR por falta.
 - [ ] Importar o extrato de horas do portal do VR para preencher horas extras automaticamente.
 - [ ] Sincronização diária da relação completa de empregados (admissões e demissões no meio do mês).
-- [ ] Enviar contas a pagar da folha ao **Conta Azul** (a Domínio já tem a integração nativa — acionar pela rotina).
+- [x] Enviar contas a pagar da folha ao **Conta Azul** — API v2 (OAuth 2.0): um total por folha (adiantamento e mensal), botão na tela da folha. Ver [docs/contaazul.md](docs/contaazul.md).
+- [ ] Conta Azul: dar baixa automática quando o pagamento for confirmado; opção de uma conta por funcionário.
 
 ## Plataforma
 - [ ] Telas de usuários e permissões no próprio portal.

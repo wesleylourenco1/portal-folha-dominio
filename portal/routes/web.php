@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\AdmissaoController;
 use App\Http\Controllers\ConfiguracaoController;
+use App\Http\Controllers\ContaAzulController;
 use App\Http\Controllers\FolhaController;
 use App\Http\Controllers\FuncaoController;
 use App\Http\Controllers\FuncionarioController;
@@ -41,6 +42,13 @@ Route::middleware('auth')->group(function () {
     Route::get('/funcoes', [FuncaoController::class, 'index'])->name('funcoes.index');
     Route::post('/funcoes', [FuncaoController::class, 'salvar'])->name('funcoes.salvar');
     Route::post('/funcoes/{funcao}/excluir', [FuncaoController::class, 'excluir'])->name('funcoes.excluir');
+
+    Route::post('/folha/{folha}/contaazul', [ContaAzulController::class, 'enviarFolha'])->name('folha.contaazul');
+    Route::get('/contaazul', [ContaAzulController::class, 'index'])->name('contaazul');
+    Route::post('/contaazul', [ContaAzulController::class, 'salvar'])->name('contaazul.salvar');
+    Route::get('/contaazul/conectar', [ContaAzulController::class, 'conectar'])->name('contaazul.conectar');
+    Route::get('/contaazul/retorno', [ContaAzulController::class, 'retorno'])->name('contaazul.retorno');
+    Route::post('/contaazul/desconectar', [ContaAzulController::class, 'desconectar'])->name('contaazul.desconectar');
 
     Route::get('/configuracoes', [ConfiguracaoController::class, 'index'])->name('configuracoes');
     Route::post('/configuracoes', [ConfiguracaoController::class, 'salvar'])->name('configuracoes.salvar');
