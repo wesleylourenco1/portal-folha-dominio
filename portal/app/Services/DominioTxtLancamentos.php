@@ -19,8 +19,8 @@ class DominioTxtLancamentos
     /** Configurações com padrão. Os valores marcados "a confirmar" devem ser testados na instalação. */
     public const CONFIG = [
         'dominio_empresa_codigo' => '1',
-        'dominio_tipo_processo' => '11',          // a confirmar na instalação
-        'dominio_formato_horas' => 'hhmm',        // hhmm: 18:14 -> 18,14 | centesimal: 18:14 -> 18,23
+        'dominio_tipo_processo' => '11',          // 11 = Mensal (confirmado na Domínio 10.6A)
+        'dominio_formato_horas' => 'hhmm',        // hhmm = opção 'Horas minutos' da importação | centesimal = 'Horas decimais'
         'dominio_rubrica_horas_extras' => '202',
         'dominio_rubrica_faltas' => '8792',
         'dominio_rubrica_faltas_vr' => '',

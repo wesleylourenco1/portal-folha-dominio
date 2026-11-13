@@ -44,8 +44,13 @@ Leiaute "Importação Arquivo Texto | De Lançamentos". Campos numéricos com ze
 
 Outros registros: 20/25 plano de saúde (operadora / beneficiário), 30 pensão alimentícia, 40 lançamento por serviço.
 
-> A confirmar na instalação: valores possíveis de "Tipo do processo", formato decimal do valor (centavos implícitos?)
-> e o menu de importação. Testar com um arquivo pequeno numa competência de teste antes de usar em produção.
+**Testado na Domínio Folha 10.6A (13/11/2026):**
+- Menu: **Utilitários > Importação > de Arquivo Texto > de Lançamentos**. Opções da tela: *Lançamento de horas* =
+  **Horas minutos** (ou Horas decimais) e *Lançamentos existentes* = **Não importar** (ou Sobrescrever).
+- A importação abre a prévia "Lançamentos importados" e só grava ao clicar em **Gravar**.
+- Tipo do processo **11 = Mensal**. Valores com **2 casas implícitas** (`000001000` = 10,00).
+- Horas em "Horas minutos": `130` = 1h30, exibido pela Domínio como 1,50. Faltas: `100` = 1 dia + registro 11 com a data,
+  exibida em "Datas de Faltas".
 
 Mapeamento previsto a partir da tela de Lançamentos: horas extras → rubrica 202 (referência em horas),
 comissão → 37, desconto VR → 201, dias de falta → rubrica 8792 + um registro 11 por dia informado.
