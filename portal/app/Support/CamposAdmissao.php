@@ -4,8 +4,7 @@ namespace App\Support;
 
 /**
  * Campos do cadastro de empregado. A ordem é a do formulário de revisão.
- * origem "doc" = extraído dos documentos pela IA; "rh" = preenchido pelo RH;
- * "ambos" = o RH pode digitar na criação e, se deixar vazio, a IA procura nos documentos.
+ * origem "doc" = extraído dos documentos pela IA; "rh" = preenchido pelo RH.
  */
 class CamposAdmissao
 {
@@ -45,8 +44,8 @@ class CamposAdmissao
         ['Endereço', 'bairro', 'Bairro', 'doc'],
         ['Endereço', 'cidade', 'Cidade', 'doc'],
         ['Endereço', 'uf', 'UF', 'doc'],
-        ['Contato', 'telefone', 'Telefone', 'ambos'],
-        ['Contato', 'email', 'E-mail', 'ambos'],
+        ['Contato', 'telefone', 'Telefone', 'rh'],
+        ['Contato', 'email', 'E-mail', 'rh'],
         ['Contrato', 'empresa_codigo', 'Código da empresa na Domínio', 'rh'],
         ['Contrato', 'data_admissao', 'Data de admissão', 'rh'],
         ['Contrato', 'cargo_codigo', 'Código do cargo na Domínio', 'rh'],
@@ -117,7 +116,7 @@ class CamposAdmissao
     public static function chaves(?string $origem = null): array
     {
         return array_values(array_map(fn ($c) => $c[1],
-            array_filter(self::CAMPOS, fn ($c) => $origem === null || $c[3] === $origem || $c[3] === 'ambos')));
+            array_filter(self::CAMPOS, fn ($c) => $origem === null || $c[3] === $origem)));
     }
 
     public static function rotulos(): array

@@ -68,11 +68,11 @@ class CamposAdmissaoTest extends TestCase
             ->assertSee('type="number" name="experiencia_dias"', false);
     }
 
-    public function test_contato_do_rh_e_mantido_e_ia_completa_o_que_faltou(): void
+    public function test_contato_vem_so_do_rh_e_a_leitura_nao_apaga(): void
     {
         $this->post('/admissoes', [
             'documentos' => [UploadedFile::fake()->create('rg.pdf', 5, 'application/pdf')],
-            'email' => 'rh.digitou@exemplo.com', 'telefone' => '',
+            'email' => 'rh.digitou@exemplo.com', 'telefone' => '(11) 98888-7777',
         ])->assertRedirect();
         $adm = Admissao::first();
         $this->assertSame('rh.digitou@exemplo.com', $adm->dados['email']);
@@ -89,10 +89,11 @@ class CamposAdmissaoTest extends TestCase
         (new \App\Jobs\ExtrairDocumentos($adm->id))->handle($falso);
 
         $dados = $adm->fresh()->dados;
-        $this->assertSame('rh.digitou@exemplo.com', $dados['email']);   // RH tem prioridade
-        $this->assertSame('(11) 99999-0000', $dados['telefone']);       // vazio -> IA preenche
+        $this->assertSame('rh.digitou@exemplo.com', $dados['email']);   // a leitura não mexe no contato
+        $this->assertSame('(11) 98888-7777', $dados['telefone']);
         $this->assertSame('Fulano de Teste', $dados['nome']);
-        $this->assertContains('telefone', \App\Support\CamposAdmissao::chaves('doc'));
+        $this->assertNotContains('telefone', \App\Support\CamposAdmissao::chaves('doc'));
+        $this->assertNotContains('email', \App\Support\CamposAdmissao::chaves('doc'));
         $this->get('/admissoes/nova')->assertSee('name="email"', false)->assertSee('name="telefone"', false);
     }
 
