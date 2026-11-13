@@ -1,8 +1,8 @@
-﻿# Roda o Portal da Folha localmente no Windows (antes do deploy no servidor):
-#   - portal Laravel (php artisan serve) em http://localhost:8000 (e na rede local)
-#   - fila (leitura de documentos com IA)
-#   - agente da Domínio
-# A cada 30 s confere os três e religa o que tiver parado. Logs em portal\storage\logs\local-*.log
+﻿# Vigia da máquina da Domínio. A cada 30 s confere e religa o que tiver parado:
+#   - agente da Domínio (sempre)
+#   - portal Laravel em http://localhost:8000 + fila: só com PORTAL_LOCAL=1 (testes antes de publicar;
+#     em produção o portal roda no servidor Ubuntu, veja docs/deploy-ubuntu.md)
+# Logs em portal\storage\logs\local-*.log
 #
 # Iniciar sem janela:  wscript scripts\windows\rodar_local.vbs   (o instalar_local.ps1 coloca isso no login do Windows)
 
@@ -40,8 +40,9 @@ $servicos = @(
     @{ nome = 'agente'; marca = (Join-Path $agente 'agente.py'); exe = $py; dir = $agente
        args = @('-W', 'ignore', (Join-Path $agente 'agente.py')) }
 )
+if ($env:PORTAL_LOCAL -ne '1') { $servicos = @($servicos | Where-Object { $_.nome -eq 'agente' }) }
 
-Registrar "vigia iniciado (php: $php)"
+Registrar "vigia iniciado: $(($servicos | ForEach-Object { $_.nome }) -join ', ')"
 Start-Sleep -Seconds 15
 while ($true) {
     foreach ($s in $servicos) {
