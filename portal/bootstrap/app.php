@@ -16,6 +16,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias(['agente' => AutenticarAgente::class]);
         $middleware->redirectGuestsTo('/login');
+        // atrás do cloudflared/Apache no mesmo servidor: confia só no proxy local (X-Forwarded-Proto = https)
+        $middleware->trustProxies(at: ['127.0.0.1', '::1']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
