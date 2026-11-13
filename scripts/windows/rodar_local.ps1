@@ -47,6 +47,12 @@ while ($true) {
     foreach ($s in $servicos) {
         if (-not (Test-Path $s.exe)) { continue }
         if (-not (Rodando $s.marca)) {
+            if ($s.nome -eq 'portal') {
+                # o "artisan serve" deixa um processo filho (php -S) que pode ficar preso na porta: encerra antes de religar
+                Get-CimInstance Win32_Process -Filter "Name='php.exe'" -ErrorAction SilentlyContinue |
+                    Where-Object { $_.CommandLine -and $_.CommandLine.Contains(" -S 0.0.0.0:$porta") } |
+                    ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
+            }
             $env:PYTHONUNBUFFERED = '1'; $env:PYTHONIOENCODING = 'utf-8'
             Start-Process -FilePath $s.exe -ArgumentList $s.args -WorkingDirectory $s.dir -WindowStyle Hidden `
                 -RedirectStandardOutput (Join-Path $logs "local-$($s.nome).log") `
