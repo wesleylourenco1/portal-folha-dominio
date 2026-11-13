@@ -73,6 +73,25 @@ class PortalTest extends TestCase
         $this->assertStringNotContainsString('maria@exemplo.com', DB::table('funcionarios')->value('chave_pix'));
     }
 
+    public function test_admissao_de_teste_nao_vai_para_a_dominio(): void
+    {
+        \Illuminate\Support\Facades\Queue::fake();
+        \Illuminate\Support\Facades\Storage::fake('local');
+        $this->post('/admissoes', ['teste' => '1', 'data_admissao' => '10/11/2026', 'cargo' => 'ATENDENTE', 'salario' => '2.000,00',
+            'documentos' => [\Illuminate\Http\UploadedFile::fake()->image('rg.jpg')]])->assertRedirect();
+        $adm = \App\Models\Admissao::first();
+        $adm->update(['status' => 'revisar']);
+        $this->get("/admissoes/{$adm->id}")->assertSee('TESTE')->assertSee('desativado no teste');
+
+        $dados = ['nome' => 'MARIA EXEMPLO', 'cpf' => '529.982.247-25', 'data_nascimento' => '01/01/1990',
+            'data_admissao' => '10/11/2026', 'cargo' => 'ATENDENTE', 'salario' => '2.000,00', 'acao' => 'aprovar'];
+        $this->post("/admissoes/{$adm->id}", $dados)->assertRedirect();
+
+        $this->assertSame('revisar', $adm->fresh()->status);
+        $this->assertSame('MARIA EXEMPLO', $adm->fresh()->dados['nome']);
+        $this->assertDatabaseCount('tarefas_agente', 0);
+    }
+
     public function test_pedido_de_adiantamento_vai_para_a_fila_uma_vez(): void
     {
         $this->post('/folha/adiantamento', ['acao' => 'gerar', 'competencia' => '11/2026'])->assertRedirect('/folha');

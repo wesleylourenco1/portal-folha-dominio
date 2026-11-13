@@ -33,6 +33,7 @@ class AdmissaoController extends Controller
         foreach (CamposAdmissao::chaves('rh') as $c) {
             $dados[$c] = trim((string) $request->input($c, ''));
         }
+        $dados['_teste'] = $request->boolean('teste') ? '1' : '';
         $adm = Admissao::create(['status' => 'extraindo', 'dados' => $dados, 'extracao' => [], 'criado_por' => $request->user()->id]);
         foreach ($request->file('documentos') as $i => $arquivo) {
             $adm->documentos()->create([
@@ -67,10 +68,15 @@ class AdmissaoController extends Controller
         foreach (CamposAdmissao::chaves() as $c) {
             $dados[$c] = trim((string) $request->input($c, ''));
         }
+        $dados['_teste'] = $admissao->dados['_teste'] ?? '';
         $usuario = $request->user()->name;
 
         switch ($request->input('acao')) {
             case 'aprovar':
+                if ($dados['_teste']) {
+                    $admissao->update(['dados' => $dados, 'mensagem' => 'Admissão de TESTE: dados salvos, nada foi enviado para a Domínio.']);
+                    break;
+                }
                 if ($erros = Br::validarAdmissao($dados)) {
                     $admissao->update(['dados' => $dados, 'mensagem' => 'Corrija os campos destacados antes de aprovar.']);
                     break;

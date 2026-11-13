@@ -11,7 +11,7 @@
 </style>
 @endpush
 @section('conteudo')
-<h1>Admissão #{{ $adm->id }} — {{ ($adm->dados['nome'] ?? '') ?: 'sem nome' }} @include('admissoes._status', ['status' => $adm->status])</h1>
+<h1>Admissão #{{ $adm->id }} — {{ ($adm->dados['nome'] ?? '') ?: 'sem nome' }} @include('admissoes._status', ['status' => $adm->status]) @if (! empty($adm->dados['_teste']))<span class="tag amarela">TESTE</span>@endif</h1>
 @if ($adm->mensagem)<div class="msg">{{ $adm->mensagem }}</div>@endif
 @if ($adm->status === 'extraindo')<div class="msg">A IA está lendo os documentos. Esta página atualiza sozinha.</div>@endif
 @if (! empty($adm->extracao['observacoes_extracao']))<div class="msg"><b>Observações da leitura:</b> {{ $adm->extracao['observacoes_extracao'] }}</div>@endif
@@ -37,7 +37,7 @@
   <div style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap">
     <button class="btn" name="acao" value="salvar">Salvar</button>
     <button class="btn" name="acao" value="reextrair" onclick="return confirm('Ler os documentos novamente? Campos vazios serão preenchidos.')">Ler documentos de novo</button>
-    <button class="btn ok" name="acao" value="aprovar">Aprovar e cadastrar na Domínio</button>
+    @if (empty($adm->dados['_teste']))<button class="btn ok" name="acao" value="aprovar" onclick="return confirm('Salvar e enviar para o robô cadastrar na Domínio?')">Salvar e enviar para a Domínio</button>@else<button class="btn" disabled title="Admissão de teste">Salvar e enviar para a Domínio (desativado no teste)</button>@endif
   </div>
   @endif
 </form>

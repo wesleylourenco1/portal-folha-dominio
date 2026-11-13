@@ -35,6 +35,7 @@
       @endforeach
     </div>
   </div>
+  <label style="display:flex;gap:6px;align-items:center;margin:0 0 12px;color:var(--tx)"><input type="checkbox" name="teste" value="1" style="width:auto"> Somente teste da leitura (não enviar para a Domínio)</label>
   <button class="btn pri" type="submit">Enviar e ler documentos</button>
 </form>
 @php
