@@ -23,7 +23,7 @@
     </div>
     <div class="grid">
       @foreach ($campos as [$secao, $campo, $rotulo, $origem])
-        @continue($origem !== 'rh')
+        @continue($origem === 'doc')
         <div><label for="{{ $campo }}">{{ $rotulo }}</label>
           @include('admissoes._campo', ['campo' => $campo, 'valor' => \App\Support\CamposAdmissao::normalizar($campo, old($campo))])
           @error($campo)<div class="dica" style="color:var(--err)">{{ $message }}</div>@enderror

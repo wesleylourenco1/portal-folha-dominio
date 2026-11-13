@@ -68,6 +68,34 @@ class CamposAdmissaoTest extends TestCase
             ->assertSee('type="number" name="experiencia_dias"', false);
     }
 
+    public function test_contato_do_rh_e_mantido_e_ia_completa_o_que_faltou(): void
+    {
+        $this->post('/admissoes', [
+            'documentos' => [UploadedFile::fake()->create('rg.pdf', 5, 'application/pdf')],
+            'email' => 'rh.digitou@exemplo.com', 'telefone' => '',
+        ])->assertRedirect();
+        $adm = Admissao::first();
+        $this->assertSame('rh.digitou@exemplo.com', $adm->dados['email']);
+
+        $falso = new class extends \App\Services\ExtratorDocumentos
+        {
+            public function __construct() {}
+
+            public function extrair(array $arquivos): array
+            {
+                return ['email' => 'lido@documento.com', 'telefone' => '(11) 99999-0000', 'nome' => 'Fulano de Teste'];
+            }
+        };
+        (new \App\Jobs\ExtrairDocumentos($adm->id))->handle($falso);
+
+        $dados = $adm->fresh()->dados;
+        $this->assertSame('rh.digitou@exemplo.com', $dados['email']);   // RH tem prioridade
+        $this->assertSame('(11) 99999-0000', $dados['telefone']);       // vazio -> IA preenche
+        $this->assertSame('Fulano de Teste', $dados['nome']);
+        $this->assertContains('telefone', \App\Support\CamposAdmissao::chaves('doc'));
+        $this->get('/admissoes/nova')->assertSee('name="email"', false)->assertSee('name="telefone"', false);
+    }
+
     public function test_aprovar_com_experiencia_acima_de_90_nao_envia(): void
     {
         $adm = Admissao::create(['status' => 'revisar', 'dados' => [], 'extracao' => []]);
