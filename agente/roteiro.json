@@ -3,9 +3,9 @@
   "login": [
     {
       "acao": "aguardar_janela",
-      "titulo": "Dom[ií]nio|Login|Conex",
+      "titulo": "Conectando",
       "timeout": 60,
-      "descricao": "Esperar a tela de login (ajustar titulo)"
+      "descricao": "Tela de login da Domínio (título 'Conectando ...'; foco já no Nome do Usuário)"
     },
     {
       "acao": "digitar",
@@ -20,9 +20,15 @@
       "descricao": "Senha"
     },
     {
+      "acao": "aguardar_janela",
+      "titulo": "Dom[ií]nio Folha - Vers",
+      "timeout": 120,
+      "descricao": "Aguardar a janela principal da Domínio (título 'Domínio Folha - Versão ...')"
+    },
+    {
       "acao": "esperar",
-      "segundos": 15,
-      "descricao": "Aguardar a Dominio carregar"
+      "segundos": 20,
+      "descricao": "Tela de abertura (Thomson Reuters) sumir"
     },
     {
       "acao": "erro_se_janela",
