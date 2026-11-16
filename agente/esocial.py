@@ -56,7 +56,10 @@ def so_digitos(v: str) -> str:
 
 
 def carregar_certificado(caminho: str, senha: str):
-    dados = Path(caminho).read_bytes()
+    return carregar_certificado_bytes(Path(caminho).read_bytes(), senha)
+
+
+def carregar_certificado_bytes(dados: bytes, senha: str):
     chave, cert, cadeia = pkcs12.load_key_and_certificates(dados, senha.encode() if senha else None)
     if not chave or not cert:
         raise EsocialErro("Certificado sem chave privada (precisa ser A1 .pfx/.p12).")

@@ -32,6 +32,8 @@ class ConfiguracaoController extends Controller
             'mensagem' => $mensagem ?? session('mensagem'), 'erro' => $erro,
             'esocialStatus' => Configuracao::ler('esocial_status'), 'esocialValidade' => Configuracao::ler('esocial_validade_certificado'),
             'esocialCnpjFolha' => app(\App\Services\EsocialConsultas::class)->cnpj(),
+            'cert' => ['existe' => app(\App\Services\CertificadoEsocial::class)->existe(), 'titular' => Configuracao::ler('esocial_certificado_titular'),
+                'enviado' => Configuracao::ler('esocial_certificado_enviado'), 'uso' => Configuracao::ler('esocial_certificado_ultimo_uso')],
         ]);
     }
 
@@ -59,5 +61,30 @@ class ConfiguracaoController extends Controller
         }
 
         return $this->index($msg);
+    }
+
+    /** Envia o certificado A1 do eSocial (arquivo + senha ficam criptografados no servidor). */
+    public function certificado(Request $request, \App\Services\CertificadoEsocial $certificado)
+    {
+        $request->validate(['certificado' => 'required|file|max:100', 'senha_certificado' => 'required|string|max:200']);
+        $ext = strtolower($request->file('certificado')->getClientOriginalExtension());
+        if (! in_array($ext, ['pfx', 'p12'], true)) {
+            return $this->index('O certificado precisa ser um arquivo .pfx ou .p12 (A1).', true);
+        }
+        try {
+            $info = $certificado->salvar(file_get_contents($request->file('certificado')->getRealPath()),
+                (string) $request->input('senha_certificado'), app(\App\Services\EsocialConsultas::class)->cnpj(), $request->user()->name);
+        } catch (\RuntimeException $e) {
+            return $this->index($e->getMessage(), true);
+        }
+
+        return $this->index('Certificado salvo (criptografado): '.$info['titular'].'.');
+    }
+
+    public function removerCertificado(\App\Services\CertificadoEsocial $certificado)
+    {
+        $certificado->remover();
+
+        return $this->index('Certificado removido do portal.');
     }
 }

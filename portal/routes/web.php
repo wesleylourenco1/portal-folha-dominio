@@ -53,4 +53,6 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/configuracoes', [ConfiguracaoController::class, 'index'])->name('configuracoes');
     Route::post('/configuracoes', [ConfiguracaoController::class, 'salvar'])->name('configuracoes.salvar');
+    Route::post('/configuracoes/certificado', [ConfiguracaoController::class, 'certificado'])->name('configuracoes.certificado');
+    Route::post('/configuracoes/certificado/remover', [ConfiguracaoController::class, 'removerCertificado'])->name('configuracoes.certificado.remover');
 });

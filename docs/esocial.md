@@ -6,9 +6,14 @@ se a **admissão (S-2200) foi aceita, com o número do recibo**. Quando a admiss
 
 ## Como funciona
 
-- Quem consulta é o **robô da máquina da Domínio**, com o **certificado A1 (e-CNPJ) da empresa**, que fica
-  só nessa máquina (`ESOCIAL_CERTIFICADO` e `ESOCIAL_CERTIFICADO_SENHA` no `agente/.env`). O portal recebe
-  apenas o resultado (código, recibos, quantidade de eventos) — o certificado nunca vai para o servidor web.
+- Quem consulta é o **robô da máquina da Domínio**, com o **certificado A1 (e-CNPJ) da empresa**.
+- O certificado é enviado em **Configurações → Certificado digital do eSocial**: arquivo e senha ficam
+  **criptografados no servidor** (APP_KEY; o .pfx em `storage/app/private/certificados`, a senha como segredo
+  na tabela `configuracoes`) e nunca voltam para a tela. O robô recebe o certificado por HTTPS, com o token do
+  agente, só na hora de consultar, e usa na memória. Alternativa: `ESOCIAL_CERTIFICADO` e
+  `ESOCIAL_CERTIFICADO_SENHA` no `agente/.env` (usado só se não houver certificado no portal).
+- Atenção: com a chave de criptografia no mesmo servidor, quem invadir o servidor consegue abrir o certificado.
+  Mantenha o servidor atualizado, backups criptografados, e renove/revogue o certificado se houver suspeita.
 - Serviço oficial: *Webservice de Consulta aos Identificadores dos Eventos*, método
   `ConsultarIdentificadoresEventosTrabalhador` (Manual de Orientação do Desenvolvedor v1.16, seção 7.7):
   CPF + período de recepção (até 31 dias) → eventos aceitos com número do recibo. Mensagem assinada
@@ -28,6 +33,6 @@ se a **admissão (S-2200) foi aceita, com o número do recibo**. Quando a admiss
 
 ## Ativar
 
-1. No `agente/.env`: `ESOCIAL_CERTIFICADO=C:\caminho\certificado.pfx` e `ESOCIAL_CERTIFICADO_SENHA=...`; reinicie o agente.
+1. Envie o certificado em **Configurações → Certificado digital do eSocial** (o portal confere senha, CNPJ e validade).
 2. No portal: **Configurações → eSocial → Consultar automaticamente: Sim**.
 3. Teste com **Funcionários → Consultar agora** em um funcionário (gasta 1 das consultas do dia).

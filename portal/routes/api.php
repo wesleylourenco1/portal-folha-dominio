@@ -9,4 +9,5 @@ Route::prefix('agente')->middleware(['agente', 'throttle:120,1'])->group(functio
     Route::post('/tarefas/{tarefa}/concluir', [AgenteController::class, 'concluir']);
     Route::post('/folhas', [AgenteController::class, 'enviarFolha']);
     Route::post('/funcionarios', [AgenteController::class, 'funcionarios']);
+    Route::get('/certificado', [AgenteController::class, 'certificado'])->middleware('throttle:10,1');
 });

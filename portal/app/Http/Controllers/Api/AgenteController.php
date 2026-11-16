@@ -133,4 +133,12 @@ class AgenteController extends Controller
             TarefaAgente::enfileirar('gerar_adiantamento', ['competencia' => $comp], 'agendamento automático');
         }
     }
+
+    /** Certificado A1 do eSocial para o robô (descriptografado só aqui, enviado por HTTPS ao agente autenticado). */
+    public function certificado(\App\Services\CertificadoEsocial $certificado)
+    {
+        $dados = $certificado->paraOAgente();
+
+        return $dados ? response()->json($dados)->header('Cache-Control', 'no-store') : response()->json(['erro' => 'Nenhum certificado enviado ao portal.'], 404);
+    }
 }

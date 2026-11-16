@@ -69,7 +69,7 @@
         <option value="restrita" @selected($v['esocial_ambiente'] === 'restrita')>Produção restrita (testes)</option></select></div>
     </div>
     @if ($esocialStatus)<p style="margin-bottom:0;font-size:13px">Última execução: {{ $esocialStatus }}</p>@endif
-    @if ($esocialValidade)<p style="margin:4px 0 0;font-size:13px">Certificado válido até <b>{{ $esocialValidade }}</b>.</p>@endif
+    <p style="margin:4px 0 0;font-size:13px">Certificado: <a href="#certificado">{{ $cert['existe'] ? 'salvo no portal' : 'enviar abaixo' }}</a></p>
   </div>
 
   <div class="card">
@@ -86,6 +86,32 @@
 
   <button class="btn pri" name="acao" value="salvar">Salvar tudo</button>
 </form>
+
+<div class="card" style="margin-top:16px" id="certificado">
+  <h2 style="margin-top:0">Certificado digital do eSocial (e-CNPJ A1)</h2>
+  <p style="color:var(--mut);margin-top:0">Arquivo e senha ficam <b>criptografados no servidor</b> e nunca são mostrados de volta.
+    O robô da Domínio recebe o certificado só na hora de consultar o eSocial.</p>
+  @if ($cert['existe'])
+    <p style="margin-top:0"><span class="tag verde">Certificado salvo</span> {{ $cert['titular'] }}
+      @if ($esocialValidade) · válido até <b>{{ $esocialValidade }}</b>@endif
+      <br><small style="color:var(--mut)">Enviado {{ $cert['enviado'] }}@if ($cert['uso']) · último uso pelo robô em {{ $cert['uso'] }}@endif</small></p>
+    @if ($esocialValidade && \Illuminate\Support\Carbon::createFromFormat('d/m/Y', $esocialValidade)->lt(now()->addDays(60)))
+      <div class="msg erro">O certificado vence em {{ $esocialValidade }}. Renove e envie o novo aqui.</div>
+    @endif
+  @endif
+  <form method="post" action="{{ route('configuracoes.certificado') }}" enctype="multipart/form-data" autocomplete="off"
+        style="display:flex;gap:10px;flex-wrap:wrap;align-items:end">@csrf
+    <div><label>Arquivo .pfx / .p12</label><input type="file" name="certificado" accept=".pfx,.p12" required></div>
+    <div><label>Senha do certificado</label><input type="password" name="senha_certificado" autocomplete="new-password" required></div>
+    <button class="btn pri">{{ $cert['existe'] ? 'Substituir certificado' : 'Enviar certificado' }}</button>
+  </form>
+  @if ($cert['existe'])
+  <form method="post" action="{{ route('configuracoes.certificado.remover') }}" style="margin-top:10px"
+        onsubmit="return confirm('Remover o certificado do portal? O robô deixa de consultar o eSocial.')">@csrf
+    <button class="btn err">Remover certificado</button>
+  </form>
+  @endif
+</div>
 <script>
   const provedores = @json($provedores);
   const sel = document.getElementById('ia_provedor');

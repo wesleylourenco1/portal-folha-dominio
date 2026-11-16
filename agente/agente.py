@@ -172,11 +172,24 @@ def consultar_esocial(tarefa: dict) -> dict:
     Devolve só o resultado (códigos, recibos, quantidade); o certificado nunca sai daqui.
     Para no primeiro "parar hoje" do eSocial (limite diário, dias 1-7, consulta em andamento).
     """
+    import base64
     import esocial
-    caminho, senha = os.environ.get("ESOCIAL_CERTIFICADO", ""), os.environ.get("ESOCIAL_CERTIFICADO_SENHA", "")
-    if not caminho or not Path(caminho).exists():
-        raise RuntimeError("Configure ESOCIAL_CERTIFICADO (arquivo .pfx A1 do e-CNPJ) e ESOCIAL_CERTIFICADO_SENHA no .env do agente.")
-    cert = esocial.carregar_certificado(caminho, senha)
+    # 1º o certificado enviado ao portal (criptografado lá; vem por HTTPS e fica só na memória);
+    # 2º, se não houver, o arquivo indicado no .env desta máquina
+    try:
+        d = api("GET", "/certificado").json()
+    except requests.HTTPError as e:
+        if e.response is None or e.response.status_code != 404:
+            raise
+        d = {}
+    if d.get("pfx_base64"):
+        cert = esocial.carregar_certificado_bytes(base64.b64decode(d["pfx_base64"]), d.get("senha") or "")
+        d.clear()
+    else:
+        caminho, senha = os.environ.get("ESOCIAL_CERTIFICADO", ""), os.environ.get("ESOCIAL_CERTIFICADO_SENHA", "")
+        if not caminho or not Path(caminho).exists():
+            raise RuntimeError("Nenhum certificado: envie o e-CNPJ A1 em Configurações do portal (ou configure ESOCIAL_CERTIFICADO no .env do agente).")
+        cert = esocial.carregar_certificado(caminho, senha)
     p = tarefa["payload"]
     itens, parado = [], None
     for c in p.get("consultas", []):

@@ -18,7 +18,7 @@ class Configuracao extends Model
     protected $fillable = ['chave', 'valor', 'segredo'];
 
     public const SEGREDOS = ['ia_chave', 'smtp_senha', 'dominio_senha',
-        'contaazul_client_secret', 'contaazul_access_token', 'contaazul_refresh_token'];
+        'contaazul_client_secret', 'contaazul_access_token', 'contaazul_refresh_token', 'esocial_certificado_senha'];
 
     /** Apaga chaves (inclusive segredos), ex.: desconectar uma integração. */
     public static function apagar(array $chaves): void
