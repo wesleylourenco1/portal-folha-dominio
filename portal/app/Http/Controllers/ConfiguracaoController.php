@@ -15,6 +15,7 @@ class ConfiguracaoController extends Controller
         'smtp_servidor', 'smtp_porta', 'smtp_usuario', 'smtp_senha', 'smtp_remetente', 'email_destino',
         'dominio_empresa_codigo', 'dominio_tipo_processo', 'dominio_formato_horas', 'dominio_rubrica_horas_extras',
         'dominio_rubrica_faltas', 'dominio_rubrica_faltas_vr', 'dominio_rubrica_comissao', 'dominio_rubrica_desconto_vr',
+        'esocial_ativo', 'esocial_consultas_dia', 'esocial_cnpj', 'esocial_ambiente',
     ];
 
     public function index(?string $mensagem = null, bool $erro = false)
@@ -29,6 +30,8 @@ class ConfiguracaoController extends Controller
             'salvos' => collect(Configuracao::SEGREDOS)->mapWithKeys(fn ($c) => [$c => Configuracao::tem($c)]),
             'provedores' => ExtratorDocumentos::PROVEDORES,
             'mensagem' => $mensagem ?? session('mensagem'), 'erro' => $erro,
+            'esocialStatus' => Configuracao::ler('esocial_status'), 'esocialValidade' => Configuracao::ler('esocial_validade_certificado'),
+            'esocialCnpjFolha' => app(\App\Services\EsocialConsultas::class)->cnpj(),
         ]);
     }
 
@@ -38,6 +41,9 @@ class ConfiguracaoController extends Controller
             'ia_provedor' => 'nullable|in:'.implode(',', array_keys(ExtratorDocumentos::PROVEDORES)),
             'smtp_porta' => 'nullable|integer|min:1|max:65535',
             'email_destino' => 'nullable|email',
+            'esocial_ativo' => 'nullable|in:sim,nao',
+            'esocial_consultas_dia' => 'nullable|integer|min:1|max:9',
+            'esocial_ambiente' => 'nullable|in:producao,restrita',
         ]);
         Configuracao::salvar($request->only(self::CHAVES));
 

@@ -13,10 +13,14 @@
 <p style="color:var(--mut);margin-top:-6px">Atualizado automaticamente com a Domínio a cada folha/adiantamento importado.
   Local, VT, VR e PIX são do escritório (não vêm da Domínio) — edite e clique em Salvar na linha.</p>
 @if (session('msg'))<div class="msg ok">{{ session('msg') }}</div>@endif
+@if ($esocialAtivo)
+  <p style="color:var(--mut);margin:-4px 0 10px;font-size:13px">eSocial: o robô consulta sozinho a partir do dia 8 (prioridade para admissões recentes).
+    Consultas restantes hoje: <b>{{ $esocialSaldo }}</b>.@if ($esocialStatus) Última: {{ $esocialStatus }}@endif</p>
+@endif
 <div class="card" style="overflow-x:auto">
 <table>
   <tr><th>Cód.</th><th>Nome</th><th>Cargo (Domínio)</th><th>Admissão</th><th class="n">Salário</th>
-      <th>Local</th><th>VT</th><th>VR mês</th><th>Desc. VR</th><th>Comissão</th><th>Chave PIX</th><th></th></tr>
+      <th>Local</th><th>VT</th><th>VR mês</th><th>Desc. VR</th><th>Comissão</th><th>Chave PIX</th><th>eSocial</th><th></th></tr>
   @forelse ($lista as $f)
   @php $form = 'f'.$f->id; @endphp
   <tr class="{{ $f->ativo ? '' : 'inativo' }}">
@@ -31,10 +35,11 @@
     <td><input form="{{ $form }}" class="mini" name="desconto_vr" value="{{ $f->desconto_vr ? Br::moeda($f->desconto_vr) : '' }}"></td>
     <td style="text-align:center"><input form="{{ $form }}" type="checkbox" name="comissionado" value="1" style="width:auto" @checked($f->comissionado)></td>
     <td><input form="{{ $form }}" class="mini" name="chave_pix" value="{{ $f->chave_pix }}" style="min-width:140px"></td>
+    <td style="min-width:150px;font-size:13px">@include('funcionarios._esocial', ['f' => $f])</td>
     <td><form id="{{ $form }}" method="post" action="{{ route('funcionarios.update', $f) }}">@csrf<button class="btn" style="padding:5px 10px">Salvar</button></form></td>
   </tr>
   @empty
-  <tr><td colspan="12">Nenhum funcionário ainda. Importe uma folha ou adiantamento.</td></tr>
+  <tr><td colspan="13">Nenhum funcionário ainda. Importe uma folha ou adiantamento.</td></tr>
   @endforelse
 </table>
 </div>

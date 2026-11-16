@@ -166,8 +166,43 @@ def importar_lancamentos(tarefa: dict) -> dict:
     return {"linhas": p["linhas"], "competencia": p["competencia"], "avisos": p.get("avisos", [])}
 
 
+def consultar_esocial(tarefa: dict) -> dict:
+    """Consulta no eSocial os eventos aceitos de cada CPF pedido pelo portal (certificado A1 desta máquina).
+
+    Devolve só o resultado (códigos, recibos, quantidade); o certificado nunca sai daqui.
+    Para no primeiro "parar hoje" do eSocial (limite diário, dias 1-7, consulta em andamento).
+    """
+    import esocial
+    caminho, senha = os.environ.get("ESOCIAL_CERTIFICADO", ""), os.environ.get("ESOCIAL_CERTIFICADO_SENHA", "")
+    if not caminho or not Path(caminho).exists():
+        raise RuntimeError("Configure ESOCIAL_CERTIFICADO (arquivo .pfx A1 do e-CNPJ) e ESOCIAL_CERTIFICADO_SENHA no .env do agente.")
+    cert = esocial.carregar_certificado(caminho, senha)
+    p = tarefa["payload"]
+    itens, parado = [], None
+    for c in p.get("consultas", []):
+        item = {"funcionario_id": c["funcionario_id"], "motivo": c.get("motivo"), "dt_ini": c["dt_ini"], "dt_fim": c["dt_fim"]}
+        try:
+            r = esocial.consultar_trabalhador(p["cnpj"], c["cpf"], c["dt_ini"], c["dt_fim"], certificado=cert,
+                                              ambiente=p.get("ambiente", "producao"))
+            item.update(codigo=r["codigo"], descricao=r["descricao"], total=r["total"], ultimo=r["ultimo"],
+                        recibos=[e["nrRec"] for e in r["eventos"]])
+            log(f"   eSocial {c.get('motivo')}: funcionário {c['funcionario_id']} -> {r['codigo']} ({r['total']} evento(s))")
+        except esocial.EsocialPararHoje as e:
+            parado = str(e)
+            log(f"   eSocial parou por hoje: {e}")
+            break
+        except esocial.EsocialErro as e:
+            item.update(codigo="erro", descricao=str(e))
+            log(f"   eSocial erro: {e}")
+            if "Certificado" in str(e):
+                itens.append(item)
+                break
+        itens.append(item)
+    return {"itens": itens, "parado": parado, "validade_certificado": esocial.validade(cert[1]).strftime("%d/%m/%Y")}
+
+
 EXECUTORES = {"gerar_adiantamento": gerar_adiantamento, "cadastrar_admissao": cadastrar_admissao,
-              "importar_lancamentos": importar_lancamentos}
+              "importar_lancamentos": importar_lancamentos, "consultar_esocial": consultar_esocial}
 
 
 def processar_tarefa() -> bool:

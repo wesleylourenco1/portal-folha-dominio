@@ -25,6 +25,7 @@ class AgenteController extends Controller
     {
         \Illuminate\Support\Facades\Cache::put('agente_visto_em', now()->timestamp, 86400);   // "robô online" no portal
         $this->agendarAdiantamentoAutomatico();
+        app(\App\Services\EsocialConsultas::class)->agendarDoDia();
         $tarefa = TarefaAgente::proxima();
         if (! $tarefa) {
             return response()->noContent();
@@ -68,6 +69,11 @@ class AgenteController extends Controller
                 ? ['status' => 'aguardando_esocial', 'mensagem' => 'Cadastrado na Domínio. Aguardando o retorno do eSocial.']
                 : ['status' => 'erro_cadastro', 'mensagem' => 'Erro no cadastro: '.($dados['mensagem'] ?? '')]);
             $adm->registrar($dados['sucesso'] ? 'Cadastro concluído na Domínio' : 'ERRO: '.($dados['mensagem'] ?? ''));
+        }
+        if ($tarefa->tipo === 'consultar_esocial') {
+            $dados['sucesso']
+                ? app(\App\Services\EsocialConsultas::class)->aplicar($dados['resultado'] ?? [])
+                : Configuracao::salvar(['esocial_status' => 'ERRO '.now()->format('d/m/Y H:i').': '.($dados['mensagem'] ?? '')]);
         }
         if ($tarefa->tipo === 'gerar_adiantamento' && ! $dados['sucesso']) {
             Configuracao::salvar(['adiantamento_status' => 'ERRO '.now()->format('d/m/Y H:i').': '.($dados['mensagem'] ?? '')]);

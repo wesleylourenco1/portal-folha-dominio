@@ -38,6 +38,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/funcionarios', [FuncionarioController::class, 'index'])->name('funcionarios.index');
     Route::post('/funcionarios/{funcionario}', [FuncionarioController::class, 'update'])->name('funcionarios.update');
+    Route::post('/funcionarios/{funcionario}/esocial', [FuncionarioController::class, 'esocial'])->name('funcionarios.esocial');
 
     Route::get('/funcoes', [FuncaoController::class, 'index'])->name('funcoes.index');
     Route::post('/funcoes', [FuncaoController::class, 'salvar'])->name('funcoes.salvar');

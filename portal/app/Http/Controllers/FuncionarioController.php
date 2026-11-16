@@ -13,7 +13,18 @@ class FuncionarioController extends Controller
         $todos = $request->boolean('todos');
         $lista = ($todos ? Funcionario::query() : Funcionario::ativos())->orderBy('nome')->get();
 
-        return view('funcionarios.index', ['lista' => $lista, 'todos' => $todos]);
+        $es = app(\App\Services\EsocialConsultas::class);
+
+        return view('funcionarios.index', ['lista' => $lista, 'todos' => $todos, 'esocialAtivo' => $es->ativo(),
+            'esocialSaldo' => max(0, $es->porDia() - $es->usadasHoje()), 'esocialStatus' => \App\Models\Configuracao::ler('esocial_status')]);
+    }
+
+    /** Consulta este funcionário no eSocial agora (pelo robô, com o certificado da empresa). */
+    public function esocial(Request $request, Funcionario $funcionario)
+    {
+        $msg = app(\App\Services\EsocialConsultas::class)->consultarAgora($funcionario, $request->user()->name);
+
+        return redirect()->route('funcionarios.index')->with('msg', $msg);
     }
 
     /** Dados do escritório que não vêm da Domínio (local, VT, VR, PIX, comissionado). */

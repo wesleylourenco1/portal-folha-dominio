@@ -17,7 +17,8 @@ Ideias e próximos passos, em ordem aproximada de prioridade.
 - [ ] Mapear o roteiro de **cadastro de empregado** na Domínio (Arquivo > Empregados).
 - [ ] Depois do cadastro, **baixar da Domínio os documentos do funcionário** (contrato de trabalho, contrato de experiência,
       ficha de registro, termo de VT... lista a definir) e anexar à admissão no portal para assinatura.
-- [ ] Conferir o retorno do eSocial (S-2200) e avisar por e-mail.
+- [x] Conferir o retorno do eSocial (S-2200) e avisar por e-mail — consulta com o certificado A1 pelo robô ([docs/esocial.md](docs/esocial.md)).
+- [ ] eSocial: conferência dos totalizadores da folha (INSS/IRRF/FGTS) e qualificação cadastral antes da admissão.
 
 ## Folha
 - [ ] Gerar o **TXT de importação de lançamentos** da Domínio a partir da tela de Lançamentos do mês e importar pelo agente.

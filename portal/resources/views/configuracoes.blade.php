@@ -53,6 +53,26 @@
   </div>
 
   <div class="card">
+    <h2 style="margin-top:0">eSocial — acompanhamento dos funcionários</h2>
+    <p style="color:var(--mut);margin-top:0">O robô da Domínio consulta o eSocial com o <b>certificado A1 (e-CNPJ) que fica só na máquina dele</b>
+      (<code>ESOCIAL_CERTIFICADO</code> no .env do agente) e manda para cá só o resultado: recibo da admissão e eventos recebidos.
+      Regras do eSocial: até 10 consultas por dia, nenhuma entre os dias 1 e 7. Status aparece em Funcionários.</p>
+    <div class="grid">
+      <div><label>Consultar automaticamente</label><select name="esocial_ativo">
+        <option value="nao" @selected(($v['esocial_ativo'] ?: 'nao') === 'nao')>Não</option>
+        <option value="sim" @selected($v['esocial_ativo'] === 'sim')>Sim, todo dia a partir das 8 h</option></select></div>
+      <div><label>Consultas por dia (1 a 9)</label><input name="esocial_consultas_dia" value="{{ $v['esocial_consultas_dia'] ?: '8' }}"></div>
+      <div><label>CNPJ do empregador (em branco = da última folha)</label>
+        <input name="esocial_cnpj" value="{{ $v['esocial_cnpj'] }}" placeholder="{{ $esocialCnpjFolha }}"></div>
+      <div><label>Ambiente</label><select name="esocial_ambiente">
+        <option value="producao" @selected(($v['esocial_ambiente'] ?: 'producao') === 'producao')>Produção</option>
+        <option value="restrita" @selected($v['esocial_ambiente'] === 'restrita')>Produção restrita (testes)</option></select></div>
+    </div>
+    @if ($esocialStatus)<p style="margin-bottom:0;font-size:13px">Última execução: {{ $esocialStatus }}</p>@endif
+    @if ($esocialValidade)<p style="margin:4px 0 0;font-size:13px">Certificado válido até <b>{{ $esocialValidade }}</b>.</p>@endif
+  </div>
+
+  <div class="card">
     <h2 style="margin-top:0">Conta Azul</h2>
     <p style="color:var(--mut);margin-top:0">Lança o líquido de cada folha (adiantamento e mensal) como conta a pagar.</p>
     <a class="btn" href="{{ route('contaazul') }}">Configurar Conta Azul →</a>

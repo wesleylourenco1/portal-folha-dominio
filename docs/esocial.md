@@ -1,0 +1,33 @@
+# Acompanhamento do eSocial
+
+O portal mostra, em **Funcionários**, se o eSocial recebeu os eventos de cada funcionário — em especial
+se a **admissão (S-2200) foi aceita, com o número do recibo**. Quando a admissão de uma ficha do portal
+é confirmada, a ficha passa para "Concluído (eSocial OK)" e o RH recebe um e-mail.
+
+## Como funciona
+
+- Quem consulta é o **robô da máquina da Domínio**, com o **certificado A1 (e-CNPJ) da empresa**, que fica
+  só nessa máquina (`ESOCIAL_CERTIFICADO` e `ESOCIAL_CERTIFICADO_SENHA` no `agente/.env`). O portal recebe
+  apenas o resultado (código, recibos, quantidade de eventos) — o certificado nunca vai para o servidor web.
+- Serviço oficial: *Webservice de Consulta aos Identificadores dos Eventos*, método
+  `ConsultarIdentificadoresEventosTrabalhador` (Manual de Orientação do Desenvolvedor v1.16, seção 7.7):
+  CPF + período de recepção (até 31 dias) → eventos aceitos com número do recibo. Mensagem assinada
+  (XMLDSig RSA-SHA256, C14N 1.0) e enviada com o certificado na conexão TLS.
+
+## Regras do eSocial respeitadas pelo portal
+
+- No máximo **10 acessos por dia** por empregador → o portal usa até 9 (padrão 8) e guarda saldo para o botão manual.
+- **Nada entre os dias 1 e 7** de cada mês.
+- Período de no máximo 31 dias, terminando pelo menos 1 hora antes de agora.
+
+## Prioridade das consultas
+
+1. Admitidos nos últimos 90 dias sem recibo da admissão (janela: 20 dias antes até 10 dias depois da admissão).
+2. Rodízio dos demais ativos, cada um no máximo a cada 30 dias (eventos recebidos nos últimos 30 dias —
+   normalmente a remuneração do mês). "Sem eventos" num ativo é sinal para conferir.
+
+## Ativar
+
+1. No `agente/.env`: `ESOCIAL_CERTIFICADO=C:\caminho\certificado.pfx` e `ESOCIAL_CERTIFICADO_SENHA=...`; reinicie o agente.
+2. No portal: **Configurações → eSocial → Consultar automaticamente: Sim**.
+3. Teste com **Funcionários → Consultar agora** em um funcionário (gasta 1 das consultas do dia).
