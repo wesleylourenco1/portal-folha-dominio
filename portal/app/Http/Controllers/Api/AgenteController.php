@@ -23,6 +23,7 @@ class AgenteController extends Controller
     /** Próxima tarefa pendente (ou 204 se não houver). Também cria a do adiantamento automático, se chegou o dia. */
     public function proxima()
     {
+        \Illuminate\Support\Facades\Cache::put('agente_visto_em', now()->timestamp, 86400);   // "robô online" no portal
         $this->agendarAdiantamentoAutomatico();
         $tarefa = TarefaAgente::proxima();
         if (! $tarefa) {

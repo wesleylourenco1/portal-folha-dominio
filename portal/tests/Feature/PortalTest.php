@@ -98,6 +98,12 @@ class PortalTest extends TestCase
         $this->post('/folha/adiantamento', ['acao' => 'gerar', 'competencia' => '11/2026']);
 
         $this->assertDatabaseCount('tarefas_agente', 1);
-        $this->get('/folha')->assertSee('Na fila do robô');
+        $this->get('/folha')->assertSee('Na fila do robô')->assertSee('offline');
+    }
+
+    public function test_robo_aparece_online_depois_de_consultar_o_portal(): void
+    {
+        \Illuminate\Support\Facades\Cache::put('agente_visto_em', time(), 60);
+        $this->get('/folha')->assertSee('online')->assertDontSee('offline');
     }
 }

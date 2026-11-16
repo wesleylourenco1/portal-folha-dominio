@@ -8,6 +8,11 @@
   <h2 style="margin-top:0">Adiantamento (vale)</h2>
   <p style="color:var(--mut);margin-top:0">O robô dispara a rotina automática da Domínio (consignados → cálculo → Extrato e Líquidos em PDF)
     e os PDFs chegam aqui sozinhos. Você recebe um e-mail quando estiver pronto.</p>
+  @php $online = $agenteVisto && (time() - $agenteVisto) < 180; @endphp
+  <p style="margin:0 0 10px">Robô da Domínio:
+    @if ($online)<span class="tag verde">online</span>
+    @else<span class="tag vermelha">offline</span> <small style="color:var(--mut)">{{ $agenteVisto ? 'visto pela última vez em '.\Illuminate\Support\Carbon::createFromTimestamp($agenteVisto, 'America/Sao_Paulo')->format('d/m/Y H:i') : 'nunca conectou' }} — os pedidos ficam na fila até ele voltar</small>@endif
+  </p>
   @if ($cfg['adiantamento_status'])
     <div class="msg {{ str_starts_with($cfg['adiantamento_status'], 'ERRO') ? 'erro' : (str_starts_with($cfg['adiantamento_status'], 'OK') ? 'ok' : '') }}">{{ $cfg['adiantamento_status'] }}</div>
   @endif

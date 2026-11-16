@@ -24,6 +24,7 @@ class FolhaController extends Controller
             'cfg' => $cfg,
             'pendente' => TarefaAgente::pendente('gerar_adiantamento'),
             'compAtual' => now()->format('m/Y'),
+            'agenteVisto' => \Illuminate\Support\Facades\Cache::get('agente_visto_em'),
         ];
     }
 
