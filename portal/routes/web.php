@@ -40,6 +40,9 @@ Route::middleware('auth')->group(function () {
     Route::post('/funcionarios/{funcionario}', [FuncionarioController::class, 'update'])->name('funcionarios.update');
     Route::post('/funcionarios/{funcionario}/esocial', [FuncionarioController::class, 'esocial'])->name('funcionarios.esocial');
 
+    Route::get('/alugueis', [\App\Http\Controllers\AluguelController::class, 'index'])->name('alugueis.index');
+    Route::post('/alugueis', [\App\Http\Controllers\AluguelController::class, 'salvar'])->name('alugueis.salvar');
+
     Route::get('/funcoes', [FuncaoController::class, 'index'])->name('funcoes.index');
     Route::post('/funcoes', [FuncaoController::class, 'salvar'])->name('funcoes.salvar');
     Route::post('/funcoes/{funcao}/excluir', [FuncaoController::class, 'excluir'])->name('funcoes.excluir');

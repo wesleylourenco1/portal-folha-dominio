@@ -70,6 +70,11 @@ class AgenteController extends Controller
                 : ['status' => 'erro_cadastro', 'mensagem' => 'Erro no cadastro: '.($dados['mensagem'] ?? '')]);
             $adm->registrar($dados['sucesso'] ? 'Cadastro concluído na Domínio' : 'ERRO: '.($dados['mensagem'] ?? ''));
         }
+        if ($tarefa->tipo === 'lancar_nota_aluguel' && ($al = \App\Models\Aluguel::find($tarefa->payload['aluguel_id'] ?? 0))) {
+            $al->update($dados['sucesso']
+                ? ['status' => 'lancado', 'mensagem' => 'Nota lançada na Escrita Fiscal em '.now()->format('d/m/Y H:i').'. '.($dados['mensagem'] ?? '')]
+                : ['status' => 'erro', 'mensagem' => 'Erro ao lançar: '.($dados['mensagem'] ?? '')]);
+        }
         if ($tarefa->tipo === 'consultar_esocial') {
             $dados['sucesso']
                 ? app(\App\Services\EsocialConsultas::class)->aplicar($dados['resultado'] ?? [])

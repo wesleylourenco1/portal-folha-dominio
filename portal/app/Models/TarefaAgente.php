@@ -20,7 +20,7 @@ class TarefaAgente extends Model
         'concluida_em' => 'datetime',
     ];
 
-    public const TIPOS = ['cadastrar_admissao', 'gerar_adiantamento', 'importar_lancamentos', 'consultar_esocial'];
+    public const TIPOS = ['cadastrar_admissao', 'gerar_adiantamento', 'importar_lancamentos', 'consultar_esocial', 'lancar_nota_aluguel'];
 
     public static function enfileirar(string $tipo, array $payload = [], ?string $por = null): self
     {
