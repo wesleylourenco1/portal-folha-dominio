@@ -17,6 +17,33 @@
 @if (session('msg'))<div class="msg ok">{{ session('msg') }}</div>@endif
 @if ($a->mensagem)<div class="msg {{ $a->status === 'erro' ? 'erro' : '' }}">{{ $a->mensagem }}</div>@endif
 
+@unless ($ro)
+<form method="post" action="{{ route('alugueis.print') }}" enctype="multipart/form-data" class="card" id="form-print">@csrf
+  <input type="hidden" name="competencia" value="{{ $a->competencia }}">
+  <h2 style="margin-top:0">Enviar o print do e-mail da imobiliária</h2>
+  <p style="color:var(--mut);margin-top:0">A IA lê as linhas, o IRRF, o saldo e o vencimento. Se a base bater com o IRRF e o saldo
+    for entradas − IRRF, a nota vai sozinha para o robô (sem EFD-Reinf). Se algo não bater, os valores ficam aqui para você conferir.
+    Dá para colar o print com <b>Ctrl+V</b> nesta página.</p>
+  <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+    <input type="file" name="print[]" id="print" accept="image/png,image/jpeg,image/webp,application/pdf" multiple required>
+    <label style="display:flex;gap:6px;align-items:center;margin:0"><input type="checkbox" name="lancar_sozinho" value="1" checked style="width:auto"> Lançar na Domínio sozinho se tudo bater</label>
+    <button class="btn pri" id="btn-print">Ler print</button>
+  </div>
+  <p id="print-colado" style="font-size:13px;color:var(--mut);margin:6px 0 0"></p>
+</form>
+<script>
+  document.getElementById('form-print').addEventListener('submit', () => { const b = document.getElementById('btn-print'); b.disabled = true; b.textContent = 'Lendo com a IA…'; });
+  document.addEventListener('paste', (e) => {
+    const imgs = [...(e.clipboardData?.files || [])].filter(f => f.type.startsWith('image/'));
+    if (!imgs.length) return;
+    const dt = new DataTransfer();
+    imgs.forEach((f, i) => dt.items.add(new File([f], f.name && f.name !== 'image.png' ? f.name : `print_${i + 1}.png`, { type: f.type })));
+    document.getElementById('print').files = dt.files;
+    document.getElementById('print-colado').textContent = `${imgs.length} imagem(ns) colada(s). Clique em "Ler print".`;
+  });
+</script>
+@endunless
+
 <form method="post" action="{{ route('alugueis.salvar') }}">@csrf
   <input type="hidden" name="competencia" value="{{ $a->competencia }}">
   <div class="card">

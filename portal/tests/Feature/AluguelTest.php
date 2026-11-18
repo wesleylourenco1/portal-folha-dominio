@@ -60,12 +60,9 @@ class AluguelTest extends TestCase
         $t = TarefaAgente::firstWhere('tipo', 'lancar_nota_aluguel');
         $this->assertSame('aluguel_102026.txt', $t->payload['arquivo']);
         $this->assertSame(
-            "|0000|11222333000181|
-"
-            ."|1000|42|11144477735||602|1949||102026|||31/10/2026|31/10/2026|9113,76||||T||||320806||||||922,51||||||||||||8191,25|
-"
-            ."|1020|63|0,00|7372,12|27,50|1118,60|0,00|0,00|0,00|0,00|9113,76|320806|
-",
+            "|0000|11222333000181|\r\n"
+            ."|1000|42|11144477735||602|1949||102026|||31/10/2026|31/10/2026|9113,76||||T||||320806||||||922,51||||||||||||8191,25|\r\n"
+            ."|1020|63|0,00|7372,12|27,50|1118,60|0,00|0,00|0,00|0,00|9113,76|320806|\r\n",
             base64_decode($t->payload['txt_base64']));
         $this->assertFalse($t->payload['transmitir_reinf']);
         $this->assertSame('102026', $t->payload['nota']['documento']);
@@ -76,5 +73,81 @@ class AluguelTest extends TestCase
         // já enviado: não deixa alterar nem enviar de novo
         $this->post('/alugueis', $form + ['acao' => 'lancar'])->assertSessionHasErrors('aluguel');
         $this->assertSame(1, TarefaAgente::where('tipo', 'lancar_nota_aluguel')->count());
+    }
+
+    private function lido(array $mudar = []): array
+    {
+        return $mudar + [
+            'competencia' => '10/2026', 'irrf' => 1118.60, 'valor_boleto' => 8497.08, 'vencimento' => '05/11/2026',
+            'itens' => [
+                ['tipo' => 'aluguel', 'descricao' => 'Aluguel OUTUBRO sem IGPM - 01 a 16/10', 'valor' => 4160.34],
+                ['tipo' => 'aluguel', 'descricao' => 'Aluguel OUTUBRO com IGPM 3,35% - 17 a 31/10', 'valor' => 4030.91],
+                ['tipo' => 'seguro', 'descricao' => 'Seguro fiança 37/47', 'valor' => 922.51],
+                ['tipo' => 'iptu', 'descricao' => 'IPTU 316', 'valor' => 219.03],
+                ['tipo' => 'iptu', 'descricao' => 'IPTU 326', 'valor' => 282.90],
+            ],
+            'imobiliaria' => 'Imobiliária Teste', 'campos_incertos' => [], 'observacoes' => '', '_ia' => 'IA de teste',
+        ];
+    }
+
+    private function enviarPrint(array $lido, bool $sozinho = true)
+    {
+        $this->mock(\App\Services\LeitorAluguel::class, fn ($m) => $m->shouldReceive('ler')->once()->andReturn($lido));
+
+        return $this->post('/alugueis/print', ['competencia' => '10/2026', 'lancar_sozinho' => $sozinho ? '1' : '0',
+            'print' => [\Illuminate\Http\UploadedFile::fake()->image('email.png')]]);
+    }
+
+    public function test_print_lido_pela_ia_e_lancado_sozinho_quando_tudo_bate(): void
+    {
+        $this->actingAs(User::factory()->create(['name' => 'rh']));
+        Configuracao::salvar(['aluguel_fornecedor_inscricao' => '111.444.777-35', 'esocial_cnpj' => '11.222.333/0001-81']);
+
+        $this->enviarPrint($this->lido())->assertRedirect()->assertSessionHas('msg');
+        $a = Aluguel::firstWhere('competencia', '10/2026');
+        $this->assertSame('na_fila', $a->status);
+        $this->assertSame('31/10/2026', $a->data_nota);
+        $this->assertSame('05/11/2026', $a->vencimento);
+        $this->assertSame(7372.12, $a->calculo['base']);
+        $t = TarefaAgente::firstWhere('tipo', 'lancar_nota_aluguel');
+        $this->assertFalse($t->payload['transmitir_reinf']);
+        $this->assertStringContainsString('|1118,60|', base64_decode($t->payload['txt_base64']));
+
+        // já na fila: um novo print não mexe em nada
+        $this->enviarPrint($this->lido(['irrf' => 1.00]))->assertSessionHasErrors('aluguel');
+        $this->assertSame(1, TarefaAgente::count());
+    }
+
+    public function test_print_que_nao_bate_fica_para_conferir(): void
+    {
+        $this->actingAs(User::factory()->create(['name' => 'rh']));
+        Configuracao::salvar(['aluguel_fornecedor_inscricao' => '111.444.777-35', 'esocial_cnpj' => '11.222.333/0001-81']);
+
+        $this->enviarPrint($this->lido(['valor_boleto' => 8000.00]))->assertRedirect();
+        $a = Aluguel::firstWhere('competencia', '10/2026');
+        $this->assertSame('rascunho', $a->status);
+        $this->assertStringContainsString('saldo do boleto', $a->mensagem);
+        $this->assertSame(0, TarefaAgente::count());
+
+        // sem marcar "lançar sozinho": só preenche
+        $this->enviarPrint($this->lido(), false)->assertRedirect();
+        $this->assertSame('rascunho', $a->fresh()->status);
+        $this->assertSame(0, TarefaAgente::count());
+        $this->get('/alugueis?competencia=10/2026')->assertOk()->assertSee('Lido do print por IA');
+    }
+
+    public function test_schema_da_leitura_e_estrito(): void
+    {
+        $verifica = function (array $s) use (&$verifica) {
+            if (($s['type'] ?? null) === 'object') {
+                $this->assertFalse($s['additionalProperties']);
+                $this->assertEqualsCanonicalizing(array_keys($s['properties']), $s['required']);
+                array_map($verifica, $s['properties']);
+            }
+            if (($s['type'] ?? null) === 'array') {
+                $verifica($s['items']);
+            }
+        };
+        $verifica(\App\Services\LeitorAluguel::schema());
     }
 }

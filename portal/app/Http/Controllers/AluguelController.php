@@ -5,8 +5,11 @@ namespace App\Http\Controllers;
 use App\Models\Aluguel;
 use App\Models\TarefaAgente;
 use App\Services\DominioTxtNotaAluguel;
+use App\Services\EsocialConsultas;
+use App\Services\LeitorAluguel;
 use App\Support\Br;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 /** Aluguel mensal: digitar a correspondência da imobiliária, conferir o IRRF e lançar a nota na Escrita Fiscal. */
 class AluguelController extends Controller
@@ -16,7 +19,7 @@ class AluguelController extends Controller
         $comp = $request->query('competencia') ?: now()->subMonth()->format('m/Y');
         $aluguel = Aluguel::firstWhere('competencia', $comp) ?? new Aluguel([
             'competencia' => $comp, 'itens' => [], 'perc_administracao' => 10,
-            'data_nota' => \Illuminate\Support\Carbon::createFromFormat('d/m/Y', '01/'.$comp)->endOfMonth()->format('d/m/Y'),
+            'data_nota' => Carbon::createFromFormat('d/m/Y', '01/'.$comp)->endOfMonth()->format('d/m/Y'),
         ]);
 
         return view('alugueis.index', [
@@ -41,7 +44,7 @@ class AluguelController extends Controller
                 $itens[] = ['tipo' => $i['tipo'], 'descricao' => trim((string) ($i['descricao'] ?? '')), 'valor' => $valor];
             }
         }
-        $data = fn ($v) => $v ? \Illuminate\Support\Carbon::createFromFormat('Y-m-d', $v)->format('d/m/Y') : null;
+        $data = fn ($v) => $v ? Carbon::createFromFormat('Y-m-d', $v)->format('d/m/Y') : null;
         $a = Aluguel::firstOrNew(['competencia' => $request->input('competencia')]);
         if (in_array($a->status, ['na_fila', 'lancado'], true) && $request->input('acao') !== 'reabrir') {
             return back()->withErrors(['aluguel' => 'Este aluguel já foi enviado para a Domínio; não dá para alterar.']);
@@ -66,18 +69,28 @@ class AluguelController extends Controller
 
     private function lancar(Request $request, Aluguel $a)
     {
+        if ($erro = $this->enviarAoRobo($a, $request->user()->name)) {
+            return back()->withErrors(['aluguel' => $erro]);
+        }
+
+        return redirect()->route('alugueis.index', ['competencia' => $a->competencia])->with('msg', 'Enviado ao robô: ele lança a nota na Escrita Fiscal (sem transmitir o EFD-Reinf).');
+    }
+
+    /** Coloca a nota na fila do robô. Devolve a mensagem de erro, ou null se enviou. */
+    private function enviarAoRobo(Aluguel $a, string $usuario): ?string
+    {
         $c = $a->calculo;
         if (! $c || ! $c['valor_produtos'] || $c['base'] === null) {
-            return back()->withErrors(['aluguel' => 'Preencha os aluguéis e o IRRF (o portal não achou base que dê esse IRRF).']);
+            return 'Preencha os aluguéis e o IRRF (o portal não achou base que dê esse IRRF).';
         }
-        $cnpj = app(\App\Services\EsocialConsultas::class)->cnpj();
+        $cnpj = app(EsocialConsultas::class)->cnpj();
         if (! $cnpj) {
-            return back()->withErrors(['aluguel' => 'Informe o CNPJ da empresa em Configurações (eSocial) ou envie uma folha antes.']);
+            return 'Informe o CNPJ da empresa em Configurações (eSocial) ou envie uma folha antes.';
         }
         try {
             $txt = DominioTxtNotaAluguel::gerar($a, $cnpj);
         } catch (\RuntimeException $e) {
-            return back()->withErrors(['aluguel' => $e->getMessage()]);
+            return $e->getMessage();
         }
         TarefaAgente::enfileirar('lancar_nota_aluguel', [
             'aluguel_id' => $a->id, 'competencia' => $a->competencia, 'transmitir_reinf' => false,
@@ -91,9 +104,75 @@ class AluguelController extends Controller
                 'imposto' => Aluguel::config('aluguel_imposto'), 'base' => Br::moeda($c['base']),
                 'irrf' => Br::moeda($c['irrf']), 'cod_recolhimento' => Aluguel::config('aluguel_cod_recolhimento'),
             ],
-        ], $request->user()->name);
-        $a->update(['status' => 'na_fila', 'mensagem' => 'Aguardando o robô lançar a nota (EFD-Reinf não será transmitido).']);
+        ], $usuario);
+        $a->update(['status' => 'na_fila', 'mensagem' => trim(($a->mensagem ? $a->mensagem.' ' : '').'Aguardando o robô lançar a nota (EFD-Reinf não será transmitido).')]);
 
-        return redirect()->route('alugueis.index', ['competencia' => $a->competencia])->with('msg', 'Enviado ao robô: ele lança a nota na Escrita Fiscal (sem transmitir o EFD-Reinf).');
+        return null;
+    }
+
+    /**
+     * Print/PDF do e-mail da imobiliária: a IA lê as linhas, o IRRF, o saldo e o vencimento; o portal calcula
+     * e, se tudo bater (base que dá o IRRF da imobiliária e saldo = entradas − IRRF), manda o robô lançar sozinho.
+     */
+    public function lerPrint(Request $request, LeitorAluguel $leitor)
+    {
+        $request->validate([
+            'print' => 'required|array|min:1|max:5',
+            'print.*' => 'file|max:10240|mimes:png,jpg,jpeg,webp,pdf',
+            'competencia' => ['nullable', 'regex:/^\d{2}\/\d{4}$/'],
+        ]);
+        $arquivos = array_map(fn ($f) => ['nome' => $f->getClientOriginalName(), 'caminho' => $f->getRealPath()], $request->file('print'));
+        try {
+            $lido = $leitor->ler($arquivos);
+        } catch (\Throwable $e) {
+            return back()->withErrors(['aluguel' => 'Não consegui ler o arquivo: '.$e->getMessage()]);
+        }
+
+        $comp = $lido['competencia'] ?: $request->input('competencia');
+        if (! $comp) {
+            return back()->withErrors(['aluguel' => 'A IA não achou o mês do aluguel no arquivo. Abra a competência e envie de novo.']);
+        }
+        $a = Aluguel::firstOrNew(['competencia' => $comp]);
+        if (in_array($a->status, ['na_fila', 'lancado'], true)) {
+            return redirect()->route('alugueis.index', ['competencia' => $comp])
+                ->withErrors(['aluguel' => "O aluguel de {$comp} já foi enviado para a Domínio; nada foi alterado."]);
+        }
+        $a->fill([
+            'data_nota' => Carbon::createFromFormat('d/m/Y', '01/'.$comp)->endOfMonth()->format('d/m/Y'),
+            'vencimento' => $lido['vencimento'], 'itens' => $lido['itens'], 'irrf_imobiliaria' => $lido['irrf'],
+            'valor_boleto' => $lido['valor_boleto'], 'perc_administracao' => $a->perc_administracao ?: 10,
+            'observacoes' => trim(($lido['imobiliaria'] ? $lido['imobiliaria'].'. ' : '').$lido['observacoes']) ?: $a->observacoes,
+            'atualizado_por' => $request->user()->name,
+        ]);
+        $a->calculo = $a->calcular();
+        $a->status = 'rascunho';
+
+        $c = $a->calculo;
+        $problemas = [];
+        if (! $c['valor_produtos']) {
+            $problemas[] = 'nenhuma linha de aluguel';
+        }
+        if ($c['base'] === null) {
+            $problemas[] = 'nenhuma base de cálculo dá o IRRF lido ('.Br::moeda($lido['irrf']).')';
+        }
+        if ($lido['valor_boleto'] !== null && abs(($c['boleto_calculado'] ?? $c['boleto']) - $lido['valor_boleto']) > 0.02) {
+            $problemas[] = 'o saldo do boleto lido ('.Br::moeda($lido['valor_boleto']).') não é entradas − IRRF ('.Br::moeda($c['boleto_calculado'] ?? $c['boleto']).')';
+        }
+        if ($lido['campos_incertos']) {
+            $problemas[] = 'a IA ficou em dúvida em: '.implode(', ', $lido['campos_incertos']);
+        }
+        $origem = 'Lido do print por IA ('.$lido['_ia'].') em '.now()->format('d/m/Y H:i').'.';
+        $a->mensagem = $problemas ? $origem.' Confira antes de lançar: '.implode('; ', $problemas).'.' : $origem;
+        $a->save();
+
+        $rota = redirect()->route('alugueis.index', ['competencia' => $comp]);
+        if ($problemas || ! $request->boolean('lancar_sozinho')) {
+            return $rota->with('msg', $problemas ? 'Print lido, mas não lancei: confira os valores abaixo.' : 'Print lido. Confira e clique em Lançar.');
+        }
+        if ($erro = $this->enviarAoRobo($a, $request->user()->name)) {
+            return $rota->withErrors(['aluguel' => 'Print lido, mas não enviei ao robô: '.$erro]);
+        }
+
+        return $rota->with('msg', "Print lido e tudo bateu: nota de {$comp} enviada ao robô (sem EFD-Reinf).");
     }
 }

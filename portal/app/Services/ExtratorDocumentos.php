@@ -23,11 +23,17 @@ class ExtratorDocumentos
     /** @param  array<int, array{nome: string, caminho: string}>  $arquivos */
     public function extrair(array $arquivos): array
     {
+        return $this->extrairCom($arquivos, self::instrucoes(), self::schema(), 'dados_funcionario');
+    }
+
+    /** Extração com instruções e JSON Schema próprios (ex.: correspondência do aluguel). */
+    public function extrairCom(array $arquivos, string $instrucoes, array $schema, string $nome): array
+    {
         [$provedor, $modelo, $chave] = $this->configuracao();
         $lidos = $this->lerArquivos($arquivos);
         $resultado = $provedor === 'openai'
-            ? $this->openai($lidos, $modelo, $chave)
-            : $this->anthropic($lidos, $modelo, $chave);
+            ? $this->openai($lidos, $modelo, $chave, $instrucoes, $schema, $nome)
+            : $this->anthropic($lidos, $modelo, $chave, $instrucoes, $schema);
         $resultado['_ia'] = self::PROVEDORES[$provedor]['nome'].' / '.$modelo;
 
         return $resultado;
@@ -130,7 +136,7 @@ class ExtratorDocumentos
         return ob_get_clean();
     }
 
-    private function anthropic(array $lidos, string $modelo, string $chave): array
+    private function anthropic(array $lidos, string $modelo, string $chave, string $instrucoes, array $schema): array
     {
         $conteudo = [];
         foreach ($lidos as [$nome, $tipo, $mime, $dados]) {
@@ -141,14 +147,14 @@ class ExtratorDocumentos
         }
         $conteudo[] = ['type' => 'text', 'text' => 'Extraia os dados conforme as instruções.'];
 
-        $outputConfig = ['format' => ['type' => 'json_schema', 'schema' => self::schema()]];
+        $outputConfig = ['format' => ['type' => 'json_schema', 'schema' => $schema]];
         if (preg_match('/^claude-(opus|fable|sonnet-5|haiku-5)/', $modelo)) {
             $outputConfig['effort'] = 'medium';
         }
         $resposta = (new AnthropicClient(apiKey: $chave))->messages->create(
             model: $modelo,
             maxTokens: 16000,
-            system: self::instrucoes(),
+            system: $instrucoes,
             outputConfig: $outputConfig,
             messages: [['role' => 'user', 'content' => $conteudo]],
         );
@@ -167,7 +173,7 @@ class ExtratorDocumentos
         throw new RuntimeException('A IA não retornou dados.');
     }
 
-    private function openai(array $lidos, string $modelo, string $chave): array
+    private function openai(array $lidos, string $modelo, string $chave, string $instrucoes, array $schema, string $nome): array
     {
         $conteudo = [];
         foreach ($lidos as [$nome, $tipo, $mime, $dados]) {
@@ -180,9 +186,9 @@ class ExtratorDocumentos
 
         $resposta = \OpenAI::client($chave)->responses()->create([
             'model' => $modelo,
-            'instructions' => self::instrucoes(),
+            'instructions' => $instrucoes,
             'input' => [['role' => 'user', 'content' => $conteudo]],
-            'text' => ['format' => ['type' => 'json_schema', 'name' => 'dados_funcionario', 'schema' => self::schema(), 'strict' => true]],
+            'text' => ['format' => ['type' => 'json_schema', 'name' => $nome, 'schema' => $schema, 'strict' => true]],
         ]);
         if (($resposta->status ?? '') === 'incomplete' || ! $resposta->outputText) {
             throw new RuntimeException('Resposta incompleta da OpenAI. Tente com menos arquivos.');

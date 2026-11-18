@@ -42,6 +42,7 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/alugueis', [\App\Http\Controllers\AluguelController::class, 'index'])->name('alugueis.index');
     Route::post('/alugueis', [\App\Http\Controllers\AluguelController::class, 'salvar'])->name('alugueis.salvar');
+    Route::post('/alugueis/print', [\App\Http\Controllers\AluguelController::class, 'lerPrint'])->name('alugueis.print');
 
     Route::get('/funcoes', [FuncaoController::class, 'index'])->name('funcoes.index');
     Route::post('/funcoes', [FuncaoController::class, 'salvar'])->name('funcoes.salvar');
