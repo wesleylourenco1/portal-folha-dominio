@@ -16,6 +16,7 @@ class ConfiguracaoController extends Controller
         'dominio_empresa_codigo', 'dominio_tipo_processo', 'dominio_formato_horas', 'dominio_rubrica_horas_extras',
         'dominio_rubrica_faltas', 'dominio_rubrica_faltas_vr', 'dominio_rubrica_comissao', 'dominio_rubrica_desconto_vr',
         'esocial_ativo', 'esocial_consultas_dia', 'esocial_cnpj', 'esocial_ambiente',
+        'aluguel_fornecedor_inscricao', 'aluguel_acumulador', 'aluguel_cfop', 'aluguel_cod_recolhimento',
     ];
 
     public function index(?string $mensagem = null, bool $erro = false)
@@ -46,6 +47,7 @@ class ConfiguracaoController extends Controller
             'esocial_ativo' => 'nullable|in:sim,nao',
             'esocial_consultas_dia' => 'nullable|integer|min:1|max:9',
             'esocial_ambiente' => 'nullable|in:producao,restrita',
+            'aluguel_fornecedor_inscricao' => ['nullable', 'regex:/^[\d.\/-]{11,18}$/'],
         ]);
         Configuracao::salvar($request->only(self::CHAVES));
 

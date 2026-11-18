@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Aluguel;
 use App\Models\TarefaAgente;
+use App\Services\DominioTxtNotaAluguel;
 use App\Support\Br;
 use Illuminate\Http\Request;
 
@@ -69,8 +70,18 @@ class AluguelController extends Controller
         if (! $c || ! $c['valor_produtos'] || $c['base'] === null) {
             return back()->withErrors(['aluguel' => 'Preencha os aluguéis e o IRRF (o portal não achou base que dê esse IRRF).']);
         }
+        $cnpj = app(\App\Services\EsocialConsultas::class)->cnpj();
+        if (! $cnpj) {
+            return back()->withErrors(['aluguel' => 'Informe o CNPJ da empresa em Configurações (eSocial) ou envie uma folha antes.']);
+        }
+        try {
+            $txt = DominioTxtNotaAluguel::gerar($a, $cnpj);
+        } catch (\RuntimeException $e) {
+            return back()->withErrors(['aluguel' => $e->getMessage()]);
+        }
         TarefaAgente::enfileirar('lancar_nota_aluguel', [
             'aluguel_id' => $a->id, 'competencia' => $a->competencia, 'transmitir_reinf' => false,
+            'arquivo' => $txt['arquivo'], 'txt_base64' => base64_encode($txt['conteudo']),
             'nota' => [
                 'fornecedor' => Aluguel::config('aluguel_fornecedor'), 'acumulador' => Aluguel::config('aluguel_acumulador'),
                 'cfop' => Aluguel::config('aluguel_cfop'), 'documento' => $a->documento(),

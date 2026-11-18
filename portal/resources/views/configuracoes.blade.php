@@ -73,6 +73,17 @@
   </div>
 
   <div class="card">
+    <h2 style="margin-top:0">Nota do aluguel (Escrita Fiscal)</h2>
+    <p style="color:var(--mut);margin-top:0">Usado pelo robô ao lançar a nota mensal do aluguel (tela Aluguel). Em branco = padrão.</p>
+    <div class="grid">
+      <div><label>CPF/CNPJ do locador (fornecedor)</label><input name="aluguel_fornecedor_inscricao" value="{{ $v['aluguel_fornecedor_inscricao'] }}" placeholder="000.000.000-00"></div>
+      <div><label>Acumulador</label><input name="aluguel_acumulador" value="{{ $v['aluguel_acumulador'] }}" placeholder="{{ \App\Models\Aluguel::NOTA['aluguel_acumulador'] }}"></div>
+      <div><label>CFOP</label><input name="aluguel_cfop" value="{{ $v['aluguel_cfop'] }}" placeholder="{{ \App\Models\Aluguel::NOTA['aluguel_cfop'] }}"></div>
+      <div><label>Código de recolhimento IRRF</label><input name="aluguel_cod_recolhimento" value="{{ $v['aluguel_cod_recolhimento'] }}" placeholder="{{ \App\Models\Aluguel::NOTA['aluguel_cod_recolhimento'] }}"></div>
+    </div>
+  </div>
+
+  <div class="card">
     <h2 style="margin-top:0">Conta Azul</h2>
     <p style="color:var(--mut);margin-top:0">Lança o líquido de cada folha (adiantamento e mensal) como conta a pagar.</p>
     <a class="btn" href="{{ route('contaazul') }}">Configurar Conta Azul →</a>

@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Aluguel;
+use App\Models\Configuracao;
 use App\Models\TarefaAgente;
 use App\Models\User;
 use App\Services\IrrfAluguel;
@@ -50,8 +51,22 @@ class AluguelTest extends TestCase
         $this->assertSame(8497.09, $a->calculo['boleto_calculado']);  // a Schier usou 1.118,6058 sem arredondar
         $this->get('/alugueis?competencia=10/2026')->assertOk()->assertSee('Base de cálculo a digitar')->assertSee('8.497,08');
 
+        // sem o CPF do locador não dá para gerar o arquivo da Domínio
+        $this->post('/alugueis', $form + ['acao' => 'lancar'])->assertSessionHasErrors('aluguel');
+        $this->assertSame(0, TarefaAgente::count());
+        Configuracao::salvar(['aluguel_fornecedor_inscricao' => '111.444.777-35', 'esocial_cnpj' => '11.222.333/0001-81']);
+
         $this->post('/alugueis', $form + ['acao' => 'lancar'])->assertRedirect();
         $t = TarefaAgente::firstWhere('tipo', 'lancar_nota_aluguel');
+        $this->assertSame('aluguel_102026.txt', $t->payload['arquivo']);
+        $this->assertSame(
+            "|0000|11222333000181|
+"
+            ."|1000|42|11144477735||602|1949||102026|||31/10/2026|31/10/2026|9113,76||||T||||320806||||||922,51||||||||||||8191,25|
+"
+            ."|1020|63|0,00|7372,12|27,50|1118,60|0,00|0,00|0,00|0,00|9113,76|320806|
+",
+            base64_decode($t->payload['txt_base64']));
         $this->assertFalse($t->payload['transmitir_reinf']);
         $this->assertSame('102026', $t->payload['nota']['documento']);
         $this->assertSame('31/10/2026', $t->payload['nota']['emissao']);

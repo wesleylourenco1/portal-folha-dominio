@@ -158,8 +158,8 @@ def importar_lancamentos(tarefa: dict) -> dict:
     p = tarefa["payload"]
     if not p.get("linhas"):
         raise RuntimeError("Nenhum lançamento para importar nesta competência. " + " ".join(p.get("avisos", [])))
-    pasta = BASE / "importacoes"
-    pasta.mkdir(exist_ok=True)
+    pasta = BASE / "importacoes" / "folha"     # fora da pasta da Importação Padrão da Escrita Fiscal
+    pasta.mkdir(parents=True, exist_ok=True)
     arquivo = pasta / p["arquivo"]
     arquivo.write_bytes(base64.b64decode(p["txt_base64"]))
     importar_txt(arquivo, salvar=True)
@@ -214,8 +214,241 @@ def consultar_esocial(tarefa: dict) -> dict:
     return {"itens": itens, "parado": parado, "validade_certificado": esocial.validade(cert[1]).strftime("%d/%m/%Y")}
 
 
+# ---------------------------------------------------------------- nota do aluguel (Escrita Fiscal)
+# Coordenadas relativas à janela principal da Domínio maximizada (1440x900), conferidas na 10.6A.
+LOGO_MODULOS = (57, 85)                      # botão "DOMÍNIO" que abre a lista de módulos
+MODULOS = {"Escrita Fiscal": (99, 257), "Folha": (78, 200)}
+MENU_IMPORTACAO_PADRAO = [(504, 60), (599, 654), (1081, 684), (843, 713)]  # Utilitários > Importação > Importação Padrão > Leiaute com Separador
+ABA_RESUMO = {"registros": (73, 12), "advertencias": (181, 12)}             # abas da tela "Resumo dos Dados"
+TELA_IMPORTACAO = "Importação Padrão - Leiaute"
+PASTA_ESCRITA = BASE / "importacoes"         # pasta guardada na Importação Padrão da Escrita Fiscal (só a nota da vez)
+
+
+def trocar_modulo(jan, nome: str) -> None:
+    """Troca o módulo da Domínio (Folha <-> Escrita Fiscal): é o mesmo programa, muda o título da janela."""
+    import motor
+    from pywinauto import mouse
+    if nome in jan.window_text():
+        return
+    jan.set_focus()
+    r = jan.rectangle()
+    mouse.click(coords=(r.left + LOGO_MODULOS[0], r.top + LOGO_MODULOS[1]))
+    time.sleep(2)
+    x, y = MODULOS[nome]
+    mouse.click(coords=(r.left + x, r.top + y))
+    fim = time.time() + 120
+    while time.time() < fim:
+        time.sleep(2)
+        if nome in jan.window_text():
+            time.sleep(5)
+            return
+    raise motor.ErroRoteiro(f"A Domínio não abriu o módulo {nome}.")
+
+
+def _filho(jan, classe: str, cid: int | None = None, titulo_janela: str | None = None, timeout: float = 15,
+           texto: str | None = None, todos: bool = False):
+    """Controle(s) visível(is) na janela principal ou na janela interna com esse título, pelo control_id ou pelo texto
+    ("&" ignorado). Os ids dos botões de opção mudam a cada abertura da Domínio: para eles use o texto."""
+    import motor
+    fim = time.time() + timeout
+    while True:
+        bases = [jan]
+        if titulo_janela:
+            bases = [c for c in jan.descendants()
+                     if c.class_name() == "FNWND3190" and titulo_janela in (c.window_text() or "") and c.is_visible()]
+        achados = []
+        for b in bases:
+            for c in b.descendants():
+                try:
+                    if (c.class_name() == classe and c.is_visible()
+                            and (cid is None or c.control_id() == cid)
+                            and (texto is None or c.window_text().replace("&", "") == texto)):
+                        achados.append(c)
+                except Exception:  # noqa: BLE001 - controle sumiu durante a leitura
+                    continue
+        if achados:
+            return achados if todos else achados[0]
+        if time.time() > fim:
+            raise motor.ErroRoteiro(f"Controle {classe} {cid or texto!r} não apareceu" + (f" em '{titulo_janela}'" if titulo_janela else ""))
+        time.sleep(0.5)
+
+
+def _apertar(controle) -> None:
+    """Aciona botão/opção pelo teclado (foco + espaço): funciona nos controles da Domínio e não depende do mouse."""
+    from pywinauto import keyboard
+    controle.set_focus()
+    time.sleep(0.3)
+    keyboard.send_keys("{SPACE}")
+    time.sleep(0.8)
+
+
+def _mensagem_dominio(jan, timeout: float, botoes: tuple = ("OK", "Ok")):
+    """Primeiro diálogo solto da Domínio que tenha um destes botões: (texto, botão) ou None.
+    Nunca passe "Sim" depois de Cancelar: a Domínio pergunta se quer gravar."""
+    import motor
+    fim = time.time() + timeout
+    while time.time() < fim:
+        for w in motor.janelas(jan.process_id()):
+            try:
+                if w.handle == jan.handle or w.class_name() == "FNWND3190" or "Sele" in w.window_text():
+                    continue
+                filhos = w.descendants()
+                texto = " ".join(t for c in filhos if c.is_visible() and (t := c.window_text()))
+                ok = next((c for c in filhos if c.class_name() == "Button" and c.is_visible()
+                           and c.window_text().replace("&", "") in botoes), None)
+                if ok and texto:
+                    return f"{w.window_text()}: {texto}", ok
+            except Exception:  # noqa: BLE001 - janela fechou durante a leitura
+                continue
+        time.sleep(0.5)
+    return None
+
+
+def _selecionar_arquivo(jan, pasta: str) -> None:
+    """Botão "..." da Importação Padrão -> "Seleção de arquivos": aponta a pasta e marca todos os .txt dela."""
+    import motor
+    _apertar(_filho(jan, "Button", texto="...", titulo_janela=TELA_IMPORTACAO))
+    dlg = None
+    fim = time.time() + 15
+    while not dlg and time.time() < fim:
+        dlg = next((w for w in motor.janelas(jan.process_id()) if "Sele" in w.window_text() and "arquivos" in w.window_text()), None)
+        time.sleep(0.5)
+    if not dlg:
+        raise motor.ErroRoteiro("A tela 'Seleção de arquivos' da Importação Padrão não abriu.")
+    ctl = {c.control_id(): c for c in dlg.descendants() if c.class_name() in ("Button", "Edit")}
+    botao = {c.window_text().replace("&", ""): c for c in ctl.values() if c.class_name() == "Button"}
+    edit = next(c for c in ctl.values() if c.class_name() == "Edit")
+    edit.set_edit_text(pasta)
+    time.sleep(0.3)
+    botao["Atualizar"].click()
+    time.sleep(1.5)
+    botao["Todos"].click()
+    time.sleep(1)
+    botao["OK"].click()
+    time.sleep(2)
+
+
+def importar_nota_escrita(arquivo: Path, salvar: bool = True) -> str:
+    """Importação Padrão (Leiaute Domínio com Separador) na Escrita Fiscal e gravação.
+    A pasta do arquivo deve conter só ele. Volta para o módulo Folha no fim."""
+    import motor
+    from pywinauto import mouse
+    roteiro = motor.carregar_roteiro(ROTEIRO)
+    _, jan = motor.janela_dominio(roteiro)
+    pasta = str(arquivo.parent.resolve())
+    try:
+        trocar_modulo(jan, "Escrita Fiscal")
+        r = jan.rectangle()
+        pontos = [(r.left + x, r.top + y) for x, y in MENU_IMPORTACAO_PADRAO]
+        jan.set_focus()
+        time.sleep(0.5)
+        mouse.click(coords=pontos[0])
+        time.sleep(1.2)
+        for p in pontos[1:-1]:
+            mouse.move(coords=p)
+            time.sleep(1.0)
+        mouse.move(coords=pontos[-1])
+        time.sleep(0.4)
+        mouse.click(coords=pontos[-1])
+        _filho(jan, "Button", texto="Importar", titulo_janela=TELA_IMPORTACAO, timeout=20)
+
+        _selecionar_arquivo(jan, pasta)
+        caminho = _filho(jan, "Edit", 1026, TELA_IMPORTACAO)
+        if caminho.window_text().rstrip("\\").lower() != pasta.lower():
+            raise motor.ErroRoteiro(f"A Importação Padrão ficou na pasta {caminho.window_text()} (esperado {pasta}).")
+        rotulo = _filho(jan, "Button", texto="Identificação:", titulo_janela=TELA_IMPORTACAO).rectangle()
+        combo = next(c for c in _filho(jan, "ComboBox", titulo_janela=TELA_IMPORTACAO, todos=True)
+                     if abs(c.rectangle().top - rotulo.top) < 12)   # clientes e fornecedores: identificação
+        if "Inscri" not in combo.window_text():
+            combo.select("Inscrição federal")
+        opcoes = _filho(jan, "Button", texto="Importar somente registros inexistentes", titulo_janela=TELA_IMPORTACAO, todos=True)
+        for op in opcoes:                                  # cadastros e movimentos: nunca sobrescrever
+            if op.get_check_state() != 1:
+                _apertar(op)
+            if op.get_check_state() != 1:
+                raise motor.ErroRoteiro("Não consegui marcar 'Importar somente registros inexistentes'.")
+        if len(opcoes) != 2:
+            raise motor.ErroRoteiro("A tela da Importação Padrão mudou (opções de registros existentes).")
+        _apertar(_filho(jan, "Button", texto="Importar", titulo_janela=TELA_IMPORTACAO))
+
+        fim = time.time() + 300
+        while "Resumo dos Dados" not in jan.window_text():
+            aviso = _mensagem_dominio(jan, 1)
+            if aviso:
+                motor.clicar(aviso[1])
+                raise motor.ErroRoteiro(f"A Domínio avisou: {aviso[0]}")
+            if time.time() > fim:
+                raise motor.ErroRoteiro("A Domínio não mostrou o Resumo dos Dados da importação.")
+            time.sleep(1)
+        time.sleep(3)
+        ra = _filho(jan, "PBTabControl32_100", timeout=10).rectangle()
+        for aba in ("registros", "advertencias"):                    # marca as notas nas duas abas
+            mouse.click(coords=(ra.left + ABA_RESUMO[aba][0], ra.top + ABA_RESUMO[aba][1]))
+            time.sleep(1.5)
+            try:
+                _apertar(_filho(jan, "Button", texto="Todos", timeout=3))
+            except motor.ErroRoteiro:
+                pass
+        gravar = _filho(jan, "Button", texto="Gravar", timeout=5)
+        cancelar = _filho(jan, "Button", texto="Cancelar", timeout=5)
+        if not gravar.is_enabled():
+            _apertar(cancelar)
+            raise motor.ErroRoteiro("Nada para gravar: a nota já existe na Escrita Fiscal ou foi recusada (veja as críticas da importação).")
+        if not salvar:
+            _apertar(cancelar)
+            resp = _mensagem_dominio(jan, 5, botoes=("Não", "Nao"))   # "deseja gravar?" -> NÃO
+            if resp:
+                motor.clicar(resp[1])
+            return "modo teste: resumo aberto com a nota marcada e cancelado, nada gravado"
+        _apertar(gravar)
+        msg = _mensagem_dominio(jan, 120)
+        if not msg:
+            raise motor.ErroRoteiro("A Domínio não confirmou a gravação.")
+        texto, ok = msg
+        motor.clicar(ok)
+        time.sleep(1)
+        if "1 registro" not in texto:
+            raise motor.ErroRoteiro(f"Gravação inesperada: {texto}")
+        try:
+            _apertar(_filho(jan, "Button", texto="Cancelar", timeout=5))   # fecha o resumo
+        except motor.ErroRoteiro:
+            pass
+        return texto
+    except Exception:
+        motor.print_tela(jan, PASTA_PDFS / "erro_nota_aluguel.png")
+        raise
+    finally:
+        try:
+            if "Resumo dos Dados" not in jan.window_text() and not _mensagem_dominio(jan, 1):
+                _apertar(_filho(jan, "Button", texto="Fechar", titulo_janela=TELA_IMPORTACAO, timeout=5))
+                time.sleep(1)
+                trocar_modulo(jan, "Folha")
+        except Exception:  # noqa: BLE001
+            log("   aviso: a Domínio ficou na Escrita Fiscal (feche a tela manualmente)")
+
+
+def lancar_nota_aluguel(tarefa: dict) -> dict:
+    """Lança a nota mensal do aluguel na Escrita Fiscal com o arquivo gerado pelo portal.
+    NÃO gera nem transmite o EFD-Reinf."""
+    import base64
+    p = tarefa["payload"]
+    if p.get("transmitir_reinf"):
+        raise RuntimeError("Este robô não transmite o EFD-Reinf.")
+    if not p.get("txt_base64"):
+        raise RuntimeError("Tarefa sem o arquivo da nota (atualize o portal).")
+    pasta = PASTA_ESCRITA
+    (pasta / "arquivados").mkdir(parents=True, exist_ok=True)
+    for velho in pasta.glob("*.txt"):            # a Importação Padrão lê a pasta inteira: deixa só esta nota
+        velho.replace(pasta / "arquivados" / velho.name)
+    arquivo = pasta / Path(p["arquivo"]).name
+    arquivo.write_bytes(base64.b64decode(p["txt_base64"]))
+    texto = importar_nota_escrita(arquivo, salvar=True)
+    return {"documento": p.get("nota", {}).get("documento"), "competencia": p.get("competencia"), "dominio": texto}
+
+
 EXECUTORES = {"gerar_adiantamento": gerar_adiantamento, "cadastrar_admissao": cadastrar_admissao,
-              "importar_lancamentos": importar_lancamentos, "consultar_esocial": consultar_esocial}
+              "importar_lancamentos": importar_lancamentos, "consultar_esocial": consultar_esocial,
+              "lancar_nota_aluguel": lancar_nota_aluguel}
 
 
 def processar_tarefa() -> bool:
@@ -249,9 +482,14 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--uma-vez", action="store_true")
     ap.add_argument("--inspecionar", action="store_true")
+    ap.add_argument("--testar-nota-escrita", metavar="ARQUIVO_TXT",
+                    help="importa a nota na Escrita Fiscal até o resumo e CANCELA (não grava)")
     ap.add_argument("--testar-importacao", metavar="ARQUIVO_TXT",
                     help="importa o TXT até a prévia da Domínio e CANCELA (não grava)")
     a = ap.parse_args()
+    if a.testar_nota_escrita:
+        log(importar_nota_escrita(Path(a.testar_nota_escrita), salvar=False))
+        return
     if a.testar_importacao:
         importar_txt(Path(a.testar_importacao), salvar=False)
         log("Teste de importação concluído: prévia aberta e cancelada, nada gravado.")
