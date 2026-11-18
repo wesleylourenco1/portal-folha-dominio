@@ -27,12 +27,12 @@ class ExtratorDocumentos
     }
 
     /** Extração com instruções e JSON Schema próprios (ex.: correspondência do aluguel). */
-    public function extrairCom(array $arquivos, string $instrucoes, array $schema, string $nome): array
+    public function extrairCom(array $arquivos, string $instrucoes, array $schema, string $nomeSchema): array
     {
         [$provedor, $modelo, $chave] = $this->configuracao();
         $lidos = $this->lerArquivos($arquivos);
         $resultado = $provedor === 'openai'
-            ? $this->openai($lidos, $modelo, $chave, $instrucoes, $schema, $nome)
+            ? $this->openai($lidos, $modelo, $chave, $instrucoes, $schema, $nomeSchema)
             : $this->anthropic($lidos, $modelo, $chave, $instrucoes, $schema);
         $resultado['_ia'] = self::PROVEDORES[$provedor]['nome'].' / '.$modelo;
 
@@ -173,7 +173,7 @@ class ExtratorDocumentos
         throw new RuntimeException('A IA não retornou dados.');
     }
 
-    private function openai(array $lidos, string $modelo, string $chave, string $instrucoes, array $schema, string $nome): array
+    private function openai(array $lidos, string $modelo, string $chave, string $instrucoes, array $schema, string $nomeSchema): array
     {
         $conteudo = [];
         foreach ($lidos as [$nome, $tipo, $mime, $dados]) {
@@ -188,7 +188,7 @@ class ExtratorDocumentos
             'model' => $modelo,
             'instructions' => $instrucoes,
             'input' => [['role' => 'user', 'content' => $conteudo]],
-            'text' => ['format' => ['type' => 'json_schema', 'name' => $nome, 'schema' => $schema, 'strict' => true]],
+            'text' => ['format' => ['type' => 'json_schema', 'name' => $nomeSchema, 'schema' => $schema, 'strict' => true]],
         ]);
         if (($resposta->status ?? '') === 'incomplete' || ! $resposta->outputText) {
             throw new RuntimeException('Resposta incompleta da OpenAI. Tente com menos arquivos.');
