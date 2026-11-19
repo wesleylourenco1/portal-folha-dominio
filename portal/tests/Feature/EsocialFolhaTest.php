@@ -98,6 +98,17 @@ class EsocialFolhaTest extends TestCase
         $this->assertSame(4, TarefaAgente::count());                 // nada mais na fila
         $this->get("/folha/{$f->id}")->assertOk()->assertSee('Transmitido e conferido')->assertSee('BELTRANO DA SILVA')->assertSee('DCTFWeb');
         $this->post("/folha/{$f->id}/esocial", ['acao' => 'transmitir'])->assertSessionHasErrors('esocial');
+        $this->get('/folha')->assertOk()->assertSee('Transmitido e conferido');   // status em cada competência
+    }
+
+    public function test_lista_mostra_nao_transmitido_e_link_dos_liquidos_vai_para_o_conta_azul(): void
+    {
+        $this->actingAs(User::factory()->create(['name' => 'rh']));
+        $f = $this->folha();
+        $this->get('/folha')->assertOk()->assertSee('Não transmitido');
+        $obs = \App\Services\ContaAzul::payload($f, '06/11/2026')['observacao'];
+        $this->assertStringContainsString("/folha/{$f->id}/pdf/liquidos", $obs);
+        $this->assertLessThan(1000, mb_strlen($obs));
     }
 
     public function test_para_de_conferir_sozinho_depois_do_limite_e_rejeicao_nao_fecha(): void

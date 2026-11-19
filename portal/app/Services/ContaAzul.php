@@ -170,7 +170,10 @@ class ContaAzul
             'conta_financeira' => $conta,
             'id_fornecedor' => (string) Configuracao::ler('contaazul_fornecedor_id'),
             'referencia_externa' => 'portal-folha-'.$folha->id,
-            'observacao' => "Líquido total de {$qtd} funcionário(s) - {$folha->calculo} {$folha->competencia}. Lançado pelo Portal da Folha.",
+            // a API do Conta Azul não aceita anexo em conta a pagar: vai o link do PDF (abre só com login no portal)
+            'observacao' => "Líquido total de {$qtd} funcionário(s) - {$folha->calculo} {$folha->competencia}. Lançado pelo Portal da Folha.
+"
+                .'Relação de líquidos (PDF): '.route('folha.pdf', [$folha, 'liquidos']),
             'rateio' => [['id_categoria' => $categoria, 'valor' => $valor]],
             'condicao_pagamento' => ['parcelas' => [[
                 'descricao' => 'Parcela única',

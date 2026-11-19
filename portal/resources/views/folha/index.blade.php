@@ -43,7 +43,7 @@
 <div class="card" style="overflow-x:auto">
 <table>
   <tr><th>Competência</th><th>Empresa</th><th>Cálculo</th><th class="n">Funcionários</th>
-      <th class="n">Proventos</th><th class="n">Descontos</th><th class="n">Líquido</th><th>Importado</th></tr>
+      <th class="n">Proventos</th><th class="n">Descontos</th><th class="n">Líquido</th><th>eSocial</th><th>Conta Azul</th><th>Importado</th></tr>
   @forelse ($folhas as $f)
     @php $d = $f->dados; @endphp
     <tr>
@@ -54,10 +54,15 @@
       <td class="n">{{ Br::moeda($d['total_proventos']) }}</td>
       <td class="n">{{ Br::moeda($d['total_descontos']) }}</td>
       <td class="n"><b>{{ Br::moeda($d['total_liquido']) }}</b></td>
+      <td>@if ($f->ehAdiantamento())<span style="color:var(--mut)">—</span>
+        @elseif ($f->esocial_status)<span class="tag {{ ['transmitido' => 'verde', 'erro' => 'vermelha', 'validado' => 'azul', 'na_fila' => 'azul', 'aguardando' => 'azul', 'fechando' => 'azul'][$f->esocial_status] ?? 'amarela' }}"
+          title="{{ $f->esocial_mensagem }}">{{ \App\Services\EsocialStatusFolha::ROTULOS[$f->esocial_status] ?? $f->esocial_status }}</span>
+        @else<span class="tag amarela">Não transmitido</span>@endif</td>
+      <td>@if ($f->contaazul_id)<span class="tag verde" title="Vencimento {{ $f->contaazul_vencimento }}">Lançado</span>@else<span style="color:var(--mut)">—</span>@endif</td>
       <td>{{ $f->updated_at->format('d/m/Y H:i') }}</td>
     </tr>
   @empty
-    <tr><td colspan="8">Nenhuma folha importada.</td></tr>
+    <tr><td colspan="10">Nenhuma folha importada.</td></tr>
   @endforelse
 </table>
 </div>
