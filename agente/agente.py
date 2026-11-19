@@ -557,7 +557,7 @@ def _dialogos(jan) -> list:
             filhos = [c for c in w.descendants() if c.is_visible()]
             botoes = {c.window_text().replace("&", ""): c for c in filhos if c.class_name() == "Button" and c.window_text()}
             texto = " ".join(c.window_text() for c in filhos if c.class_name() != "Button" and c.window_text())
-            if not botoes:                                   # janela de progresso ("Aguarde..."): não é pergunta
+            if not botoes or re.match(r"Aguarde|Progresso", w.window_text() or ""):   # progresso: não é pergunta
                 continue
             achados.append((w, f"{w.window_text()}: {texto}".strip(), botoes))
         except Exception:  # noqa: BLE001
@@ -876,6 +876,9 @@ def transmitir_reinf(tarefa: dict) -> dict:
                 w, texto, botoes = dlg[0]
                 dialogos.append(texto)
                 log(f"   Domínio: {texto[:200]}")
+                if re.search(r"Fim do Processamento", texto, re.I) and "Não" in botoes:   # "Deseja consultar o resultado?"
+                    _apertar(botoes["Não"])                        # o robô consulta pelo relatório logo depois
+                    break
                 if re.search(r"saldo dos impostos n.o foram calculados", texto, re.I):
                     _apertar(botoes.get("OK") or next(iter(botoes.values())))
                     raise motor.ErroRoteiro(f"A Domínio avisou que a apuração de {comp} não foi calculada; nada foi enviado. "
