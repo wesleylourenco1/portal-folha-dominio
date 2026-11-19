@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\LancamentoCompetencia;
 use App\Models\TarefaAgente;
+use App\Services\DominioTxtLancamentos;
 use App\Services\Lancamentos;
 use Illuminate\Http\Request;
 
@@ -38,7 +39,7 @@ class LancamentoController extends Controller
     }
 
     /** Arquivo texto no leiaute de importação de lançamentos da Domínio. */
-    public function txt(Request $request, \App\Services\DominioTxtLancamentos $gerador)
+    public function txt(Request $request, DominioTxtLancamentos $gerador)
     {
         $request->validate(['comp' => ['required', 'regex:/^\d{2}\/\d{4}$/']]);
         $comp = $request->query('comp');

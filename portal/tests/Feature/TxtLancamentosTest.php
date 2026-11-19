@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Configuracao;
+use App\Models\Funcionario;
 use App\Models\Lancamento;
 use App\Models\User;
 use App\Services\DominioTxtLancamentos;
@@ -62,7 +63,7 @@ class TxtLancamentosTest extends TestCase
     {
         $this->actingAs(User::factory()->create(['name' => 'rh']));
         config(['services.agente.token' => str_repeat('t', 64)]);
-        \App\Models\Funcionario::create(['codigo' => '7', 'nome' => 'MARIA EXEMPLO', 'ativo' => true]);
+        Funcionario::create(['codigo' => '7', 'nome' => 'MARIA EXEMPLO', 'ativo' => true]);
 
         $this->post('/lancamentos', ['comp' => '11/2026', 'acao' => 'fechar', 'v' => ['7' => ['comissao' => '100,00']]])
             ->assertSee('O robô vai importar');

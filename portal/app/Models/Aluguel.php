@@ -9,8 +9,10 @@ use Illuminate\Database\Eloquent\Model;
 class Aluguel extends Model
 {
     protected $table = 'alugueis';
+
     protected $fillable = ['competencia', 'data_nota', 'vencimento', 'itens', 'irrf_imobiliaria', 'valor_boleto', 'perc_administracao',
         'calculo', 'status', 'mensagem', 'observacoes', 'atualizado_por'];
+
     protected $casts = ['itens' => 'array', 'calculo' => 'array', 'irrf_imobiliaria' => 'float', 'valor_boleto' => 'float', 'perc_administracao' => 'float'];
 
     public const TIPOS = [

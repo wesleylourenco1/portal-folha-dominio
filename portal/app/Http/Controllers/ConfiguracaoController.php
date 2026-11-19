@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Configuracao;
+use App\Services\CertificadoEsocial;
 use App\Services\DominioTxtLancamentos;
+use App\Services\EsocialConsultas;
 use App\Services\ExtratorDocumentos;
 use App\Services\Notificador;
 use Illuminate\Http\Request;
@@ -32,8 +34,8 @@ class ConfiguracaoController extends Controller
             'provedores' => ExtratorDocumentos::PROVEDORES,
             'mensagem' => $mensagem ?? session('mensagem'), 'erro' => $erro,
             'esocialStatus' => Configuracao::ler('esocial_status'), 'esocialValidade' => Configuracao::ler('esocial_validade_certificado'),
-            'esocialCnpjFolha' => app(\App\Services\EsocialConsultas::class)->cnpj(),
-            'cert' => ['existe' => app(\App\Services\CertificadoEsocial::class)->existe(), 'titular' => Configuracao::ler('esocial_certificado_titular'),
+            'esocialCnpjFolha' => app(EsocialConsultas::class)->cnpj(),
+            'cert' => ['existe' => app(CertificadoEsocial::class)->existe(), 'titular' => Configuracao::ler('esocial_certificado_titular'),
                 'enviado' => Configuracao::ler('esocial_certificado_enviado'), 'uso' => Configuracao::ler('esocial_certificado_ultimo_uso')],
         ]);
     }
@@ -66,7 +68,7 @@ class ConfiguracaoController extends Controller
     }
 
     /** Envia o certificado A1 do eSocial (arquivo + senha ficam criptografados no servidor). */
-    public function certificado(Request $request, \App\Services\CertificadoEsocial $certificado)
+    public function certificado(Request $request, CertificadoEsocial $certificado)
     {
         $request->validate(['certificado' => 'required|file|max:100', 'senha_certificado' => 'required|string|max:200']);
         $ext = strtolower($request->file('certificado')->getClientOriginalExtension());
@@ -75,7 +77,7 @@ class ConfiguracaoController extends Controller
         }
         try {
             $info = $certificado->salvar(file_get_contents($request->file('certificado')->getRealPath()),
-                (string) $request->input('senha_certificado'), app(\App\Services\EsocialConsultas::class)->cnpj(), $request->user()->name);
+                (string) $request->input('senha_certificado'), app(EsocialConsultas::class)->cnpj(), $request->user()->name);
         } catch (\RuntimeException $e) {
             return $this->index($e->getMessage(), true);
         }
@@ -83,7 +85,7 @@ class ConfiguracaoController extends Controller
         return $this->index('Certificado salvo (criptografado): '.$info['titular'].'.');
     }
 
-    public function removerCertificado(\App\Services\CertificadoEsocial $certificado)
+    public function removerCertificado(CertificadoEsocial $certificado)
     {
         $certificado->remover();
 

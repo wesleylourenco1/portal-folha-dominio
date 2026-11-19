@@ -16,8 +16,11 @@ use RuntimeException;
 class ContaAzul
 {
     public const AUTORIZAR = 'https://login.contaazul.com/#/oauth/authorize';
+
     public const TOKEN = 'https://api-v2.contaazul.com/oauth/token';
+
     public const API = 'https://api-v2.contaazul.com';
+
     public const ESCOPO = 'openid profile aws.cognito.signin.user.admin';
 
     public const CONFIG = ['contaazul_client_id', 'contaazul_redirect_uri', 'contaazul_fornecedor_id', 'contaazul_fornecedor_nome',

@@ -48,6 +48,7 @@ Route::middleware('auth')->group(function () {
     Route::post('/funcoes', [FuncaoController::class, 'salvar'])->name('funcoes.salvar');
     Route::post('/funcoes/{funcao}/excluir', [FuncaoController::class, 'excluir'])->name('funcoes.excluir');
 
+    Route::post('/folha/{folha}/esocial', [FolhaController::class, 'esocial'])->name('folha.esocial');
     Route::post('/folha/{folha}/contaazul', [ContaAzulController::class, 'enviarFolha'])->name('folha.contaazul');
     Route::get('/contaazul', [ContaAzulController::class, 'index'])->name('contaazul');
     Route::post('/contaazul', [ContaAzulController::class, 'salvar'])->name('contaazul.salvar');

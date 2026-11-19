@@ -13,6 +13,7 @@ Uso:
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import traceback
@@ -106,6 +107,7 @@ def gerar_adiantamento(tarefa: dict) -> dict:
     roteiro = motor.carregar_roteiro(ROTEIRO)
     inicio = time.time()
     _, jan = motor.janela_dominio(roteiro)
+    trocar_modulo(jan, "Folha")                 # a Domínio pode ter aberto na Escrita Fiscal
     for i, passo in enumerate(roteiro["executar_rotina_adiantamento"], 1):
         try:
             motor.executar_passo(passo, {}, jan, salvar=True)
@@ -129,6 +131,7 @@ def cadastrar_admissao(tarefa: dict) -> dict:
     if not any(p["acao"] != "_comentario" for p in roteiro.get("cadastro_admissao", [])):
         raise motor.ErroRoteiro("Roteiro de cadastro de admissão ainda não mapeado para esta Domínio.")
     _, jan = motor.janela_dominio(roteiro)
+    trocar_modulo(jan, "Folha")                 # a Domínio pode ter aberto na Escrita Fiscal
     dados = tarefa["payload"]["dados"]
     for i, passo in enumerate(roteiro["cadastro_admissao"], 1):
         try:
@@ -144,6 +147,7 @@ def importar_txt(arquivo: Path, salvar: bool = True) -> None:
     import motor
     roteiro = motor.carregar_roteiro(ROTEIRO)
     _, jan = motor.janela_dominio(roteiro)
+    trocar_modulo(jan, "Folha")                 # a Domínio pode ter aberto na Escrita Fiscal
     dados = {"arquivo_txt": str(arquivo.resolve())}
     for i, passo in enumerate(roteiro["importar_lancamentos"], 1):
         try:
@@ -446,9 +450,260 @@ def lancar_nota_aluguel(tarefa: dict) -> dict:
     return {"documento": p.get("nota", {}).get("documento"), "competencia": p.get("competencia"), "dominio": texto}
 
 
+
+# ---------------------------------------------------------------- eSocial da folha (Relatórios > e-Social)
+# Coordenadas relativas à janela principal maximizada (1440x900), conferidas na 10.6A (módulo Folha).
+MENU_ESOCIAL = [(396, 60), (402, 130), (754, 130)]           # Relatórios > e-Social > (corredor até o submenu)
+ITEM_ESOCIAL = {"eventos": (780, 200), "status": (827, 250), "retorno": (837, 402)}
+ANALITICO_INSS = [(1034, 404), (1083, 404)]                   # Retorno do evento de Fechamento > Analítico INSS
+PDF_PREVIA = (40, 356)                                         # botão PDF da barra lateral da pré-visualização
+PASTA_ESOCIAL = BASE / "relatorios_esocial"
+EVENTOS_FOLHA = {"S-1200": "S-1200 - Remuneração", "S-1210": "S-1210 - Pagamentos",
+                 "S-1299": "S-1299 - Fechamento dos Eventos Periódicos"}
+NUNCA_MARCAR = ("Efetuar Reabertura", "Efetuar a transmissão imediata da DCTFWeb")
+
+
+def _menu_esocial(jan, item: str) -> None:
+    from pywinauto import mouse
+    r = jan.rectangle()
+    p = [(r.left + x, r.top + y) for x, y in MENU_ESOCIAL]
+    jan.set_focus()
+    time.sleep(0.5)
+    mouse.click(coords=p[0])
+    time.sleep(1.2)
+    mouse.click(coords=p[1])
+    time.sleep(1.5)
+    mouse.move(coords=p[2])
+    time.sleep(0.5)
+    x, y = ITEM_ESOCIAL[item]
+    mouse.move(coords=(r.left + x, r.top + y))
+    time.sleep(0.5)
+    if item != "retorno":
+        mouse.click(coords=(r.left + x, r.top + y))
+        return
+    time.sleep(1.0)                                            # submenu do retorno do fechamento
+    for x, y in ANALITICO_INSS:
+        mouse.move(coords=(r.left + x, r.top + y))
+        time.sleep(0.5)
+    mouse.click(coords=(r.left + ANALITICO_INSS[-1][0], r.top + ANALITICO_INSS[-1][1]))
+
+
+def _janela_interna(jan, titulo: str, timeout: float = 20):
+    import motor
+    fim = time.time() + timeout
+    while time.time() < fim:
+        for c in jan.descendants():
+            try:
+                if c.class_name() == "FNWND3190" and (c.window_text() or "") == titulo and c.is_visible():
+                    return c
+            except Exception:  # noqa: BLE001
+                continue
+        time.sleep(0.5)
+    raise motor.ErroRoteiro(f"A tela '{titulo}' não abriu.")
+
+
+def _digitar_competencia(edit, comp: str) -> None:
+    import motor
+    from pywinauto import keyboard
+    edit.click_input()
+    time.sleep(0.3)
+    keyboard.send_keys("{HOME}+{END}" + comp.replace("/", ""), pause=0.05)
+    time.sleep(0.4)
+    if edit.window_text() != comp:
+        raise motor.ErroRoteiro(f"A competência ficou '{edit.window_text()}' (esperado {comp}).")
+
+
+def _periodo(jan, janela, comp: str) -> None:
+    """Campos "Competência ... até ...": a Domínio não aceita fim antes do início, então a ordem depende do valor atual."""
+    import motor
+    ini, fim = sorted([c for c in janela.descendants() if c.class_name() == "PBEDIT190" and c.is_visible()][:2],
+                      key=lambda c: c.rectangle().left)
+    def mmaaaa(v):
+        m, a = v.split("/")
+        return int(a) * 100 + int(m)
+    ordem = (ini, fim) if mmaaaa(comp) <= mmaaaa(ini.window_text()) else (fim, ini)
+    for e in ordem:
+        _digitar_competencia(e, comp)
+        aviso = _mensagem_dominio(jan, 1)
+        if aviso:
+            _apertar(aviso[1])
+            raise motor.ErroRoteiro(f"A Domínio recusou a competência: {aviso[0]}")
+
+
+def _marcar(janela, texto: str, marcado: bool) -> None:
+    import motor
+    caixa = next((c for c in janela.descendants() if c.class_name() == "Button"
+                  and c.window_text().replace("&", "") == texto and c.is_visible()), None)
+    if caixa is None:
+        if marcado:
+            raise motor.ErroRoteiro(f"Opção '{texto}' não encontrada na tela.")
+        return
+    if (caixa.get_check_state() == 1) != marcado:
+        if not caixa.is_enabled():
+            raise motor.ErroRoteiro(f"A opção '{texto}' está desabilitada.")
+        _apertar(caixa)
+    if (caixa.get_check_state() == 1) != marcado:
+        raise motor.ErroRoteiro(f"Não consegui {'marcar' if marcado else 'desmarcar'} '{texto}'.")
+
+
+def _dialogos(jan) -> list:
+    """Diálogos soltos da Domínio abertos agora: [(janela, texto, {rótulo: botão})]."""
+    import motor
+    achados = []
+    for w in motor.janelas(jan.process_id()):
+        try:
+            if w.handle == jan.handle or w.class_name() == "FNWND3190":
+                continue
+            filhos = [c for c in w.descendants() if c.is_visible()]
+            botoes = {c.window_text().replace("&", ""): c for c in filhos if c.class_name() == "Button" and c.window_text()}
+            texto = " ".join(c.window_text() for c in filhos if c.class_name() != "Button" and c.window_text())
+            achados.append((w, f"{w.window_text()}: {texto}".strip(), botoes))
+        except Exception:  # noqa: BLE001
+            continue
+    return achados
+
+
+def enviar_eventos_periodicos(jan, comp: str, eventos: list, transmitir: bool) -> list:
+    """Relatórios > e-Social > Eventos periódicos: marca os eventos, NUNCA a DCTFWeb nem a reabertura,
+    e (se transmitir) clica em Enviar Todos. Respostas aceitas aos diálogos vêm do roteiro (esocial_respostas)."""
+    import motor
+    roteiro = motor.carregar_roteiro(ROTEIRO)
+    _menu_esocial(jan, "eventos")
+    t = _janela_interna(jan, "Eventos Periódicos")
+    try:
+        _digitar_competencia(next(c for c in t.descendants() if c.class_name() == "PBEDIT190" and c.is_visible()), comp)
+        combo = next(c for c in t.descendants() if c.class_name() == "ComboBox" and c.is_visible())
+        if combo.window_text() != "Mensal":
+            combo.select("Mensal")
+        for ev, rotulo in EVENTOS_FOLHA.items():
+            _marcar(t, rotulo, ev in eventos)
+        for rotulo in NUNCA_MARCAR:
+            _marcar(t, rotulo, False)
+        if not transmitir:
+            return ["(modo preparo: eventos marcados, nada enviado)"]
+        _apertar(_filho(jan, "Button", texto="Enviar Todos", titulo_janela="Eventos Periódicos", timeout=5))
+        respostas = roteiro.get("esocial_respostas", [])
+        vistos, fim = [], time.time() + 1800
+        while time.time() < fim:
+            dlg = _dialogos(jan)
+            if not dlg:
+                time.sleep(2)
+                continue
+            w, texto, botoes = dlg[0]
+            vistos.append(texto)
+            log(f"   Domínio: {texto[:200]}")
+            regra = next((r for r in respostas if re.search(r["texto"], texto, re.I)), None)
+            if regra and regra["botao"] in botoes:
+                _apertar(botoes[regra["botao"]])
+                time.sleep(2)
+                if regra.get("fim"):
+                    return vistos
+                continue
+            if set(botoes) <= {"OK", "Ok"} and re.search(r"sucesso|conclu|enviad|transmitid", texto, re.I):
+                _apertar(next(iter(botoes.values())))
+                return vistos
+            raise motor.ErroRoteiro(f"A Domínio perguntou/avisou e o robô não sabe responder (deixei a tela como está): {texto}")
+        raise motor.ErroRoteiro("O envio não terminou em 30 minutos.")
+    finally:
+        if not _dialogos(jan):
+            try:
+                _apertar(_filho(jan, "Button", texto="Fechar", titulo_janela="Eventos Periódicos", timeout=3))
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def relatorio_status_esocial(jan, comp: str) -> Path:
+    """Relatórios > e-Social > Relação de status dos eventos periódicos -> PDF."""
+    import motor
+    from pywinauto import mouse
+    _menu_esocial(jan, "status")
+    t = _janela_interna(jan, "Relação de Status dos Eventos Periódicos")
+    _periodo(jan, t, comp)
+    _apertar(_filho(jan, "Button", texto="OK", titulo_janela="Relação de Status dos Eventos Periódicos", timeout=5))
+    fim = time.time() + 120
+    while "[Relação de Status" not in jan.window_text():
+        if time.time() > fim:
+            raise motor.ErroRoteiro("A Domínio não mostrou o relatório de status.")
+        time.sleep(1)
+    time.sleep(2)
+    PASTA_ESOCIAL.mkdir(exist_ok=True)
+    destino = PASTA_ESOCIAL / f"status_{comp.replace('/', '')}_{time.strftime('%Y%m%d%H%M%S')}.pdf"
+    r = jan.rectangle()
+    mouse.click(coords=(r.left + PDF_PREVIA[0], r.top + PDF_PREVIA[1]))
+    motor.executar_passo({"acao": "salvar_como", "titulo": "Salvar em PDF", "campo": "destino", "timeout": 20},
+                         {"destino": str(destino)}, jan, salvar=True)
+    fim = time.time() + 30
+    while not destino.exists() and time.time() < fim:
+        time.sleep(1)
+    time.sleep(1)
+    for c in [c for c in jan.descendants() if c.class_name() == "FNWND3190" and "Status dos Eventos" in (c.window_text() or "")]:
+        try:
+            c.close()
+            time.sleep(1)
+        except Exception:  # noqa: BLE001
+            pass
+    if not destino.exists():
+        raise motor.ErroRoteiro("O PDF do relatório de status não foi salvo.")
+    return destino
+
+
+def fechamento_validado(jan, comp: str) -> bool:
+    """Retorno do evento de Fechamento > Analítico INSS: a Domínio só emite se o S-1299 da competência estiver validado."""
+    import motor
+    _menu_esocial(jan, "retorno")
+    t = _janela_interna(jan, "Analítico INSS")
+    try:
+        _periodo(jan, t, comp)
+        _apertar(_filho(jan, "Button", texto="OK", titulo_janela="Analítico INSS", timeout=5))
+        fim = time.time() + 90
+        while time.time() < fim:
+            aviso = _mensagem_dominio(jan, 1)
+            if aviso:
+                _apertar(aviso[1])
+                if re.search(r"fechamento validado", aviso[0], re.I):
+                    return False
+                raise motor.ErroRoteiro(f"Analítico INSS: {aviso[0]}")
+            if "[Analítico INSS]" in jan.window_text():
+                return True
+        raise motor.ErroRoteiro("A Domínio não respondeu ao Analítico INSS.")
+    finally:
+        for c in [c for c in jan.descendants() if c.class_name() == "FNWND3190" and "Analítico INSS" in (c.window_text() or "")]:
+            try:
+                c.close()
+                time.sleep(1)
+            except Exception:  # noqa: BLE001
+                pass
+
+
+def transmitir_esocial_folha(tarefa: dict) -> dict:
+    """eSocial da folha mensal, em etapas (a Domínio não deixa o S-1299 junto com S-1200/S-1210):
+      etapa "remuneracao": envia S-1200 e S-1210; "fechamento": envia só o S-1299; "conferir": nada é enviado.
+    Sempre devolve o relatório de status (PDF) e se o fechamento está validado. A DCTFWeb nunca é transmitida aqui."""
+    import base64
+    import motor
+    p = tarefa["payload"]
+    if p.get("transmitir_dctfweb"):
+        raise RuntimeError("Este robô não transmite a DCTFWeb.")
+    comp, etapa = p["competencia"], p.get("etapa", "conferir")
+    if not re.fullmatch(r"\d{2}/\d{4}", comp) or etapa not in ("remuneracao", "fechamento", "conferir"):
+        raise RuntimeError(f"Pedido inválido: {comp} / {etapa}")
+    time.sleep(int(p.get("esperar_segundos", 0)))           # nova conferência: dá tempo ao retorno do governo
+    _, jan = motor.janela_dominio(motor.carregar_roteiro(ROTEIRO))
+    trocar_modulo(jan, "Folha")
+    dialogos = []
+    if etapa != "conferir":
+        eventos = ["S-1200", "S-1210"] if etapa == "remuneracao" else ["S-1299"]
+        dialogos = enviar_eventos_periodicos(jan, comp, eventos, transmitir=True)
+        time.sleep(int(os.environ.get("ESOCIAL_ESPERA_SEGUNDOS", "120")))   # o retorno do governo demora
+    pdf = relatorio_status_esocial(jan, comp)
+    fechado = fechamento_validado(jan, comp)
+    return {"etapa": etapa, "enviou": etapa != "conferir", "dialogos": dialogos, "relatorio": pdf.name,
+            "fechamento_validado": fechado, "status_pdf_base64": base64.b64encode(pdf.read_bytes()).decode()}
+
+
 EXECUTORES = {"gerar_adiantamento": gerar_adiantamento, "cadastrar_admissao": cadastrar_admissao,
               "importar_lancamentos": importar_lancamentos, "consultar_esocial": consultar_esocial,
-              "lancar_nota_aluguel": lancar_nota_aluguel}
+              "lancar_nota_aluguel": lancar_nota_aluguel, "transmitir_esocial_folha": transmitir_esocial_folha}
 
 
 def processar_tarefa() -> bool:

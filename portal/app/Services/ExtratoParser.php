@@ -15,6 +15,7 @@ use Smalot\PdfParser\Parser;
 class ExtratoParser
 {
     private const NUM = '-?[\d.]+,\d{2}';
+
     private const CONSIGNADO = ['CRED. TRAB', 'CONSIG', 'EMPRESTIMO', 'EMPRÉSTIMO', 'EMP. CRED'];
 
     public function lerArquivo(string $caminho): array

@@ -4,15 +4,20 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Admissao;
+use App\Models\Aluguel;
 use App\Models\Configuracao;
 use App\Models\Folha;
 use App\Models\TarefaAgente;
+use App\Services\CertificadoEsocial;
 use App\Services\DominioTxtLancamentos;
+use App\Services\EsocialConsultas;
+use App\Services\EsocialStatusFolha;
 use App\Services\FolhaService;
 use App\Services\FuncionarioSync;
 use App\Services\Notificador;
 use App\Support\Br;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * API usada pelo agente que roda na máquina (ou VM) da Domínio.
@@ -23,9 +28,9 @@ class AgenteController extends Controller
     /** Próxima tarefa pendente (ou 204 se não houver). Também cria a do adiantamento automático, se chegou o dia. */
     public function proxima()
     {
-        \Illuminate\Support\Facades\Cache::put('agente_visto_em', now()->timestamp, 86400);   // "robô online" no portal
+        Cache::put('agente_visto_em', now()->timestamp, 86400);   // "robô online" no portal
         $this->agendarAdiantamentoAutomatico();
-        app(\App\Services\EsocialConsultas::class)->agendarDoDia();
+        app(EsocialConsultas::class)->agendarDoDia();
         $tarefa = TarefaAgente::proxima();
         if (! $tarefa) {
             return response()->noContent();
@@ -70,14 +75,22 @@ class AgenteController extends Controller
                 : ['status' => 'erro_cadastro', 'mensagem' => 'Erro no cadastro: '.($dados['mensagem'] ?? '')]);
             $adm->registrar($dados['sucesso'] ? 'Cadastro concluído na Domínio' : 'ERRO: '.($dados['mensagem'] ?? ''));
         }
-        if ($tarefa->tipo === 'lancar_nota_aluguel' && ($al = \App\Models\Aluguel::find($tarefa->payload['aluguel_id'] ?? 0))) {
+        if ($tarefa->tipo === 'lancar_nota_aluguel' && ($al = Aluguel::find($tarefa->payload['aluguel_id'] ?? 0))) {
             $al->update($dados['sucesso']
                 ? ['status' => 'lancado', 'mensagem' => 'Nota lançada na Escrita Fiscal em '.now()->format('d/m/Y H:i').'. '.($dados['mensagem'] ?? '')]
                 : ['status' => 'erro', 'mensagem' => 'Erro ao lançar: '.($dados['mensagem'] ?? '')]);
         }
+        if ($tarefa->tipo === 'transmitir_esocial_folha' && ($folha = Folha::find($tarefa->payload['folha_id'] ?? 0))) {
+            try {
+                EsocialStatusFolha::retorno($folha, $tarefa, $dados['sucesso'], $dados['mensagem'] ?? null, $dados['resultado'] ?? []);
+            } catch (\Throwable $e) {
+                $folha->update(['esocial_status' => 'erro', 'esocial_mensagem' => 'Não consegui ler o retorno do robô: '.$e->getMessage()]);
+            }
+            $tarefa->update(['resultado' => array_diff_key($dados['resultado'] ?? [], ['status_pdf_base64' => 1])]);
+        }
         if ($tarefa->tipo === 'consultar_esocial') {
             $dados['sucesso']
-                ? app(\App\Services\EsocialConsultas::class)->aplicar($dados['resultado'] ?? [])
+                ? app(EsocialConsultas::class)->aplicar($dados['resultado'] ?? [])
                 : Configuracao::salvar(['esocial_status' => 'ERRO '.now()->format('d/m/Y H:i').': '.($dados['mensagem'] ?? '')]);
         }
         if ($tarefa->tipo === 'gerar_adiantamento' && ! $dados['sucesso']) {
@@ -140,7 +153,7 @@ class AgenteController extends Controller
     }
 
     /** Certificado A1 do eSocial para o robô (descriptografado só aqui, enviado por HTTPS ao agente autenticado). */
-    public function certificado(\App\Services\CertificadoEsocial $certificado)
+    public function certificado(CertificadoEsocial $certificado)
     {
         $dados = $certificado->paraOAgente();
 

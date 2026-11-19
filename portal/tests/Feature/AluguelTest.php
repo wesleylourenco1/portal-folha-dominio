@@ -7,7 +7,9 @@ use App\Models\Configuracao;
 use App\Models\TarefaAgente;
 use App\Models\User;
 use App\Services\IrrfAluguel;
+use App\Services\LeitorAluguel;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Tests\TestCase;
 
 class AluguelTest extends TestCase
@@ -92,10 +94,10 @@ class AluguelTest extends TestCase
 
     private function enviarPrint(array $lido, bool $sozinho = true)
     {
-        $this->mock(\App\Services\LeitorAluguel::class, fn ($m) => $m->shouldReceive('ler')->once()->andReturn($lido));
+        $this->mock(LeitorAluguel::class, fn ($m) => $m->shouldReceive('ler')->once()->andReturn($lido));
 
         return $this->post('/alugueis/print', ['competencia' => '10/2026', 'lancar_sozinho' => $sozinho ? '1' : '0',
-            'print' => [\Illuminate\Http\UploadedFile::fake()->image('email.png')]]);
+            'print' => [UploadedFile::fake()->image('email.png')]]);
     }
 
     public function test_print_lido_pela_ia_e_lancado_sozinho_quando_tudo_bate(): void
@@ -148,6 +150,6 @@ class AluguelTest extends TestCase
                 $verifica($s['items']);
             }
         };
-        $verifica(\App\Services\LeitorAluguel::schema());
+        $verifica(LeitorAluguel::schema());
     }
 }

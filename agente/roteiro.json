@@ -21,7 +21,7 @@
     },
     {
       "acao": "aguardar_janela",
-      "titulo": "Dom[ií]nio Folha - Vers",
+      "titulo": "Dom[ií]nio (Folha|Escrita Fiscal) +- Vers",
       "timeout": 120,
       "descricao": "Aguardar a janela principal da Domínio (título 'Domínio Folha - Versão ...')"
     },

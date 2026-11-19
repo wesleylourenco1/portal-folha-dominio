@@ -8,8 +8,10 @@ use App\Models\Funcao;
 use App\Models\TarefaAgente;
 use App\Support\Br;
 use App\Support\CamposAdmissao;
+use App\Support\Documentos;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class AdmissaoController extends Controller
 {
@@ -30,7 +32,7 @@ class AdmissaoController extends Controller
             'documentos.*' => 'file|max:51200|mimes:pdf,jpg,jpeg,png,webp,zip',
         ]);
         try {
-            $arquivos = \App\Support\Documentos::expandir($request->file('documentos'));
+            $arquivos = Documentos::expandir($request->file('documentos'));
         } catch (\RuntimeException $e) {
             return back()->withErrors(['documentos' => $e->getMessage()])->withInput();
         }
@@ -44,7 +46,7 @@ class AdmissaoController extends Controller
         $dados['_teste'] = $request->boolean('teste') ? '1' : '';
         $adm = Admissao::create(['status' => 'extraindo', 'dados' => $dados, 'extracao' => [], 'criado_por' => $request->user()->id]);
         foreach ($arquivos as ['nome' => $nome, 'conteudo' => $conteudo, 'mime' => $mime]) {
-            $caminho = "admissoes/{$adm->id}/".\Illuminate\Support\Str::uuid().'.'.strtolower(pathinfo($nome, PATHINFO_EXTENSION));
+            $caminho = "admissoes/{$adm->id}/".Str::uuid().'.'.strtolower(pathinfo($nome, PATHINFO_EXTENSION));
             Storage::disk('local')->put($caminho, $conteudo);
             $adm->documentos()->create(['nome_original' => $nome, 'caminho' => $caminho, 'mime' => $mime]);
         }

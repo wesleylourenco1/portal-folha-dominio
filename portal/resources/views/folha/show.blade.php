@@ -75,6 +75,38 @@
     <span class="n opc">{{ Br::moeda($d['total_consignado'] ?? 0) }}</span><span class="n">{{ Br::moeda($d['total_liquido']) }}</span></div>
 </div>
 
+@unless ($f->ehAdiantamento())
+<div class="card">
+  <h2 style="margin-top:0">eSocial da folha</h2>
+  @if ($errors->has('esocial'))<div class="msg erro">{{ $errors->first('esocial') }}</div>@endif
+  @php $esTag = ['transmitido' => 'verde', 'validado' => 'azul', 'na_fila' => 'azul', 'aguardando' => 'azul', 'fechando' => 'azul', 'erro' => 'vermelha']; $esOcupado = in_array($f->esocial_status, ['na_fila', 'aguardando', 'fechando'], true); @endphp
+  <p style="margin-top:0">
+    @if ($f->esocial_status)<span class="tag {{ $esTag[$f->esocial_status] ?? '' }}">{{ \App\Services\EsocialStatusFolha::ROTULOS[$f->esocial_status] ?? $f->esocial_status }}</span>@endif
+    {{ $f->esocial_mensagem ?? 'Ainda não transmitido pelo portal. O robô envia S-1200 (remunerações), S-1210 (pagamentos) e o fechamento S-1299 na Domínio; a DCTFWeb continua com você.' }}
+    @if ($f->esocial_transmitido_em)<br><small style="color:var(--mut)">Transmitido em {{ $f->esocial_transmitido_em->format('d/m/Y H:i') }} por {{ $f->esocial_transmitido_por }}.</small>@endif
+    @if ($f->esocial_conferido_em)<small style="color:var(--mut)"> Conferido em {{ $f->esocial_conferido_em->format('d/m/Y H:i') }}.</small>@endif
+    @if ($f->esocial_fechado_em)<small style="color:var(--mut)"> Fechamento validado em {{ $f->esocial_fechado_em->format('d/m/Y H:i') }}.</small>@endif
+  </p>
+  <form method="post" action="{{ route('folha.esocial', $f) }}" style="display:flex;gap:10px;flex-wrap:wrap">@csrf
+    @if (! $esOcupado && $f->esocial_status !== 'transmitido')
+      <button class="btn ok" name="acao" value="transmitir"
+        onclick="return confirm('Transmitir o eSocial da folha {{ $f->competencia }}? O robô envia S-1200 e S-1210, confere até validar e então envia o fechamento S-1299. Vai para o governo e não dá para desfazer pelo portal. A DCTFWeb NÃO será transmitida.')">{{ $f->esocial_status === 'validado' ? 'Enviar fechamento (S-1299)' : 'Transmitir eSocial' }}</button>
+    @endif
+    @if (! $esOcupado)<button class="btn" name="acao" value="conferir">{{ $f->esocial_conferido_em ? 'Conferir de novo' : 'Só conferir status' }}</button>@endif
+  </form>
+  @if ($f->esocial_empregados)
+    <table style="margin-top:10px"><tr><th>Empregado</th><th>Remuneração (S-1200)</th><th>Pagamento (S-1210)</th></tr>
+      @foreach ($f->esocial_empregados as $e)
+        <tr><td>{{ $e['nome'] }}</td>
+          @foreach (['remuneracao', 'pagamento'] as $k)
+            <td>@if ($e[$k] === '')<span style="color:var(--mut)">—</span>@else<span class="tag {{ \App\Services\EsocialStatusFolha::validado($e[$k]) ? 'verde' : 'vermelha' }}">{{ $e[$k] }}</span>@endif</td>
+          @endforeach</tr>
+      @endforeach
+    </table>
+  @endif
+</div>
+@endunless
+
 <div class="card">
   <h2 style="margin-top:0">Conta Azul</h2>
   @if (session('mensagem'))<div class="msg ok">{{ session('mensagem') }}</div>@endif

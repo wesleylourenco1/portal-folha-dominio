@@ -12,9 +12,13 @@ use Illuminate\Support\Facades\Crypt;
 class Configuracao extends Model
 {
     protected $table = 'configuracoes';
+
     protected $primaryKey = 'chave';
+
     public $incrementing = false;
+
     protected $keyType = 'string';
+
     protected $fillable = ['chave', 'valor', 'segredo'];
 
     public const SEGREDOS = ['ia_chave', 'smtp_senha', 'dominio_senha',

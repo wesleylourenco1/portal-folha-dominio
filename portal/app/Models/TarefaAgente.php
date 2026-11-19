@@ -12,7 +12,9 @@ use Illuminate\Support\Facades\DB;
 class TarefaAgente extends Model
 {
     protected $table = 'tarefas_agente';
+
     protected $fillable = ['tipo', 'status', 'payload', 'resultado', 'mensagem', 'solicitado_por', 'iniciada_em', 'concluida_em'];
+
     protected $casts = [
         'payload' => 'encrypted:array',
         'resultado' => 'array',
@@ -20,7 +22,7 @@ class TarefaAgente extends Model
         'concluida_em' => 'datetime',
     ];
 
-    public const TIPOS = ['cadastrar_admissao', 'gerar_adiantamento', 'importar_lancamentos', 'consultar_esocial', 'lancar_nota_aluguel'];
+    public const TIPOS = ['cadastrar_admissao', 'gerar_adiantamento', 'importar_lancamentos', 'consultar_esocial', 'lancar_nota_aluguel', 'transmitir_esocial_folha'];
 
     public static function enfileirar(string $tipo, array $payload = [], ?string $por = null): self
     {

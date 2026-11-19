@@ -2,12 +2,17 @@
 
 namespace Tests\Feature;
 
+use App\Models\Admissao;
 use App\Models\Configuracao;
 use App\Models\Funcionario;
 use App\Models\Lancamento;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class PortalTest extends TestCase
@@ -75,11 +80,11 @@ class PortalTest extends TestCase
 
     public function test_admissao_de_teste_nao_vai_para_a_dominio(): void
     {
-        \Illuminate\Support\Facades\Queue::fake();
-        \Illuminate\Support\Facades\Storage::fake('local');
+        Queue::fake();
+        Storage::fake('local');
         $this->post('/admissoes', ['teste' => '1', 'data_admissao' => '10/11/2026', 'cargo' => 'ATENDENTE', 'salario' => '2.000,00',
-            'documentos' => [\Illuminate\Http\UploadedFile::fake()->image('rg.jpg')]])->assertRedirect();
-        $adm = \App\Models\Admissao::first();
+            'documentos' => [UploadedFile::fake()->image('rg.jpg')]])->assertRedirect();
+        $adm = Admissao::first();
         $adm->update(['status' => 'revisar']);
         $this->get("/admissoes/{$adm->id}")->assertSee('TESTE')->assertSee('desativado no teste');
 
@@ -103,7 +108,7 @@ class PortalTest extends TestCase
 
     public function test_robo_aparece_online_depois_de_consultar_o_portal(): void
     {
-        \Illuminate\Support\Facades\Cache::put('agente_visto_em', time(), 60);
+        Cache::put('agente_visto_em', time(), 60);
         $this->get('/folha')->assertSee('online')->assertDontSee('offline');
     }
 }

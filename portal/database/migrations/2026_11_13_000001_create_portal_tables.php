@@ -126,7 +126,7 @@ return new class extends Migration
     public function down(): void
     {
         foreach (['tarefas_agente', 'lancamento_competencias', 'lancamentos', 'folhas', 'admissao_documentos',
-                     'admissoes', 'funcionarios', 'funcoes', 'configuracoes'] as $tabela) {
+            'admissoes', 'funcionarios', 'funcoes', 'configuracoes'] as $tabela) {
             Schema::dropIfExists($tabela);
         }
     }

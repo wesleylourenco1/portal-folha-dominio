@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Jobs\ExtrairDocumentos;
 use App\Models\Admissao;
 use App\Models\User;
+use App\Services\ExtratorDocumentos;
 use App\Support\Br;
 use App\Support\CamposAdmissao;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -77,7 +79,7 @@ class CamposAdmissaoTest extends TestCase
         $adm = Admissao::first();
         $this->assertSame('rh.digitou@exemplo.com', $adm->dados['email']);
 
-        $falso = new class extends \App\Services\ExtratorDocumentos
+        $falso = new class extends ExtratorDocumentos
         {
             public function __construct() {}
 
@@ -86,14 +88,14 @@ class CamposAdmissaoTest extends TestCase
                 return ['email' => 'lido@documento.com', 'telefone' => '(11) 99999-0000', 'nome' => 'Fulano de Teste'];
             }
         };
-        (new \App\Jobs\ExtrairDocumentos($adm->id))->handle($falso);
+        (new ExtrairDocumentos($adm->id))->handle($falso);
 
         $dados = $adm->fresh()->dados;
         $this->assertSame('rh.digitou@exemplo.com', $dados['email']);   // a leitura não mexe no contato
         $this->assertSame('(11) 98888-7777', $dados['telefone']);
         $this->assertSame('Fulano de Teste', $dados['nome']);
-        $this->assertNotContains('telefone', \App\Support\CamposAdmissao::chaves('doc'));
-        $this->assertNotContains('email', \App\Support\CamposAdmissao::chaves('doc'));
+        $this->assertNotContains('telefone', CamposAdmissao::chaves('doc'));
+        $this->assertNotContains('email', CamposAdmissao::chaves('doc'));
         $this->get('/admissoes/nova')->assertSee('name="email"', false)->assertSee('name="telefone"', false);
     }
 

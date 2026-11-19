@@ -17,8 +17,11 @@ class Documentos
 {
     public const EXTENSOES = ['pdf' => 'application/pdf', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
         'png' => 'image/png', 'webp' => 'image/webp'];
+
     public const MAX_ARQUIVOS = 40;
+
     public const MAX_POR_ARQUIVO = 20 * 1024 * 1024;     // 20 MB
+
     public const MAX_TOTAL = 150 * 1024 * 1024;          // 150 MB descompactados
 
     /**

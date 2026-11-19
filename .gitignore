@@ -39,3 +39,4 @@ agente/.venv/
 .claude/
 Thumbs.db
 .DS_Store
+agente/relatorios_esocial/

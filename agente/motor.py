@@ -33,7 +33,7 @@ def janela_dominio(roteiro: dict | None = None):
         app = Application(backend="win32").connect(path=EXE_DOMINIO, timeout=5)
     except Exception:  # noqa: BLE001 - não está aberta
         app = abrir_dominio(roteiro or {})
-    jan = app.top_window()
+    jan = app.window(class_name="FNWND3190", title_re="Dom.nio").wrapper_object()   # a principal, não um diálogo por cima
     if jan.is_minimized():
         jan.restore()
     jan.set_focus()

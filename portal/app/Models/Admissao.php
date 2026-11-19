@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Admissao extends Model
 {
     protected $table = 'admissoes';
+
     protected $fillable = ['status', 'dados', 'extracao', 'mensagem', 'log', 'criado_por'];
 
     // dados pessoais criptografados no banco

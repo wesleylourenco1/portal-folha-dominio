@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Configuracao;
 use App\Models\Folha;
 use App\Services\ContaAzul;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 
@@ -93,7 +94,7 @@ class ContaAzulController extends Controller
     public function enviarFolha(Request $request, Folha $folha, ContaAzul $ca)
     {
         $request->validate(['vencimento' => 'required|date_format:Y-m-d']);
-        $venc = \Carbon\Carbon::createFromFormat('Y-m-d', $request->input('vencimento'))->format('d/m/Y');
+        $venc = Carbon::createFromFormat('Y-m-d', $request->input('vencimento'))->format('d/m/Y');
         try {
             $ca->enviarFolha($folha, $venc, $request->user()->name);
         } catch (\Throwable $e) {

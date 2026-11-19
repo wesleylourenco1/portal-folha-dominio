@@ -8,10 +8,12 @@ use Illuminate\Support\Facades\Storage;
 class Folha extends Model
 {
     protected $fillable = ['competencia', 'empresa_codigo', 'empresa_nome', 'cnpj', 'calculo', 'dados', 'origem', 'importado_por',
-        'contaazul_id', 'contaazul_valor', 'contaazul_vencimento', 'contaazul_enviado_em', 'contaazul_enviado_por'];
+        'contaazul_id', 'contaazul_valor', 'contaazul_vencimento', 'contaazul_enviado_em', 'contaazul_enviado_por',
+        'esocial_status', 'esocial_mensagem', 'esocial_empregados', 'esocial_transmitido_em', 'esocial_transmitido_por', 'esocial_conferido_em', 'esocial_fechado_em', 'esocial_tentativas'];
 
     // salários e CPFs criptografados no banco
-    protected $casts = ['dados' => 'encrypted:array', 'contaazul_enviado_em' => 'datetime', 'contaazul_valor' => 'float'];
+    protected $casts = ['dados' => 'encrypted:array', 'contaazul_enviado_em' => 'datetime', 'contaazul_valor' => 'float',
+        'esocial_empregados' => 'encrypted:array', 'esocial_transmitido_em' => 'datetime', 'esocial_conferido_em' => 'datetime', 'esocial_fechado_em' => 'datetime'];
 
     /**
      * Vencimento do pagamento (DD/MM/AAAA): adiantamento no dia configurado da competência;

@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class AdmissaoDocumento extends Model
 {
     protected $table = 'admissao_documentos';
+
     protected $fillable = ['admissao_id', 'nome_original', 'caminho', 'mime'];
 
     public function admissao(): BelongsTo
