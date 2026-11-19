@@ -710,6 +710,7 @@ MENU_REINF = [("clicar", (419, 60)), ("clicar", (433, 109)), ("mover", (609, 109
               ("mover", (796, 111)), ("mover", (780, 156)), ("clicar", (757, 156)), ("mover", (1034, 156)),
               ("clicar", (1063, 158))]
 TELA_REINF = "EFD-Reinf - Envio de Arquivos"
+MENU_APURACAO = [(324, 60), (321, 259)]                       # Movimentos > Apuração (Escrita Fiscal)
 TELA_REINF_CONSULTA = "EFD-Reinf - Consulta Envio dos Arquivos"
 
 
@@ -773,6 +774,55 @@ def _salvar_previa_pdf(jan, nome: str, titulo_previa: str) -> Path | None:
     return destino
 
 
+def apurar_escrita(jan, comp: str) -> list:
+    """Movimentos > Apuração > Processa período (a Domínio não envia a Reinf sem a apuração do mês calculada)."""
+    import motor
+    from pywinauto import mouse
+    r = jan.rectangle()
+    jan.set_focus()
+    time.sleep(0.5)
+    mouse.click(coords=(r.left + MENU_APURACAO[0][0], r.top + MENU_APURACAO[0][1]))
+    time.sleep(1.5)
+    mouse.click(coords=(r.left + MENU_APURACAO[1][0], r.top + MENU_APURACAO[1][1]))
+    t = _janela_interna(jan, "Apuração", timeout=40)
+    avisos = []
+    try:
+        _periodo(jan, t, comp)
+        _apertar(_filho(jan, "Button", texto="Processa período", titulo_janela="Apuração", timeout=5))
+        time.sleep(3)
+        fim, quieto = time.time() + 1200, 0
+        while time.time() < fim and quieto < 3:
+            try:
+                abertos = [w.window_text() for w in motor.janelas(jan.process_id()) if w.handle != jan.handle]
+            except Exception:  # noqa: BLE001 - Domínio ocupada
+                abertos = ["(ocupada)"]
+            dlg = [d for d in _dialogos(jan) if not re.match(r"Progresso|Aguarde", d[1])]
+            if dlg:
+                w, texto, botoes = dlg[0]
+                avisos.append(texto)
+                log(f"   Apuração: {texto[:200]}")
+                if re.search(r"Fim da apura", texto, re.I) and "Não" in botoes:   # "Deseja ver os dados apurados?"
+                    _apertar(botoes["Não"])
+                    time.sleep(2)
+                    return avisos
+                if not ({"OK", "Ok"} & set(botoes)) or re.search(r"erro|n.o foi poss", texto, re.I):
+                    raise motor.ErroRoteiro(f"A apuração de {comp} parou com: {texto}")
+                _apertar(botoes.get("OK") or botoes.get("Ok"))
+                quieto = 0
+            quieto = quieto + 1 if not abertos else 0
+            time.sleep(2)
+        if quieto < 3:
+            raise motor.ErroRoteiro(f"A apuração de {comp} não terminou em 20 minutos.")
+        return avisos
+    finally:
+        if not _dialogos(jan):
+            try:
+                _apertar(_filho(jan, "Button", texto="Fechar", titulo_janela="Apuração", timeout=5))
+                time.sleep(1)
+            except Exception:  # noqa: BLE001
+                pass
+
+
 def consultar_reinf(jan, comp: str) -> Path | None:
     """Botão Consultar Envio -> Listar -> Relatório (evento, situação e recibo) em PDF."""
     _apertar(_filho(jan, "Button", texto="Consultar Envio", titulo_janela=TELA_REINF, timeout=5))
@@ -806,6 +856,8 @@ def transmitir_reinf(tarefa: dict) -> dict:
     dialogos = []
     try:
         trocar_modulo(jan, "Escrita Fiscal")
+        if etapa == "enviar":
+            dialogos += [f"Apuração: {a}" for a in apurar_escrita(jan, comp)]
         t = _abrir_reinf(jan)
         _digitar_competencia(next(c for c in t.descendants() if c.class_name() == "PBEDIT190" and c.is_visible()), comp)
         combo = next(c for c in t.descendants() if c.class_name() == "ComboBox" and c.is_visible())
