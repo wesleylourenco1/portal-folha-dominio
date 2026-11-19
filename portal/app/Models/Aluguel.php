@@ -11,9 +11,11 @@ class Aluguel extends Model
     protected $table = 'alugueis';
 
     protected $fillable = ['competencia', 'data_nota', 'vencimento', 'itens', 'irrf_imobiliaria', 'valor_boleto', 'perc_administracao',
-        'calculo', 'status', 'mensagem', 'observacoes', 'atualizado_por'];
+        'calculo', 'status', 'mensagem', 'observacoes', 'atualizado_por',
+        'reinf_status', 'reinf_mensagem', 'reinf_eventos', 'reinf_enviado_em', 'reinf_enviado_por', 'reinf_conferido_em', 'reinf_tentativas'];
 
-    protected $casts = ['itens' => 'array', 'calculo' => 'array', 'irrf_imobiliaria' => 'float', 'valor_boleto' => 'float', 'perc_administracao' => 'float'];
+    protected $casts = ['itens' => 'array', 'calculo' => 'array', 'irrf_imobiliaria' => 'float', 'valor_boleto' => 'float', 'perc_administracao' => 'float',
+        'reinf_eventos' => 'array', 'reinf_enviado_em' => 'datetime', 'reinf_conferido_em' => 'datetime'];
 
     public const TIPOS = [
         'aluguel' => 'Aluguel (entra na base do IRRF)',

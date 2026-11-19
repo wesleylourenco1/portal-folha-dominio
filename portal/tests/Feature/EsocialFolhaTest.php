@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Models\Folha;
 use App\Models\TarefaAgente;
 use App\Models\User;
+use App\Services\ContaAzul;
 use App\Services\EsocialStatusFolha;
 use App\Services\ExtratoParser;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -106,7 +107,7 @@ class EsocialFolhaTest extends TestCase
         $this->actingAs(User::factory()->create(['name' => 'rh']));
         $f = $this->folha();
         $this->get('/folha')->assertOk()->assertSee('Não transmitido');
-        $obs = \App\Services\ContaAzul::payload($f, '06/11/2026')['observacao'];
+        $obs = ContaAzul::payload($f, '06/11/2026')['observacao'];
         $this->assertStringContainsString("/folha/{$f->id}/pdf/liquidos", $obs);
         $this->assertLessThan(1000, mb_strlen($obs));
     }

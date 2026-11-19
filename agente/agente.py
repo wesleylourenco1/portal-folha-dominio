@@ -701,9 +701,151 @@ def transmitir_esocial_folha(tarefa: dict) -> dict:
             "fechamento_validado": fechado, "status_pdf_base64": base64.b64encode(pdf.read_bytes()).decode()}
 
 
+
+# ---------------------------------------------------------------- EFD-Reinf (Escrita Fiscal)
+# Relatórios > Informativos > Federais > EFD-Reinf > Enviar Arquivos (coordenadas relativas à janela maximizada).
+MENU_REINF = [("clicar", (419, 60)), ("clicar", (433, 109)), ("mover", (609, 109)), ("clicar", (635, 111)),
+              ("mover", (796, 111)), ("mover", (780, 156)), ("clicar", (757, 156)), ("mover", (1034, 156)),
+              ("clicar", (1063, 158))]
+TELA_REINF = "EFD-Reinf - Envio de Arquivos"
+TELA_REINF_CONSULTA = "EFD-Reinf - Consulta Envio dos Arquivos"
+
+
+def _abrir_reinf(jan):
+    from pywinauto import mouse
+    r = jan.rectangle()
+    jan.set_focus()
+    time.sleep(0.5)
+    for acao, (x, y) in MENU_REINF:
+        (mouse.click if acao == "clicar" else mouse.move)(coords=(r.left + x, r.top + y))
+        time.sleep(1.2 if acao == "clicar" else 0.4)
+    return _janela_interna(jan, TELA_REINF)
+
+
+def _fechar_previa(jan) -> None:
+    """Fecha a pré-visualização aberta (a janela interna cujo título aparece entre [ ] na janela principal)."""
+    m = re.search(r"\[(.+)\]\s*$", jan.window_text())
+    if not m:
+        return
+    for c in [c for c in jan.descendants() if c.class_name() == "FNWND3190" and (c.window_text() or "") == m.group(1)]:
+        try:
+            c.close()
+            time.sleep(1)
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def _salvar_previa_pdf(jan, nome: str, titulo_previa: str) -> Path | None:
+    """Salva em PDF a pré-visualização que abriu. None se a Domínio disse que não há dados."""
+    import motor
+    from pywinauto import mouse
+    fim = time.time() + 120
+    while titulo_previa not in jan.window_text():
+        aviso = _mensagem_dominio(jan, 1)
+        if aviso and re.search(r"sem dados", aviso[0], re.I):
+            _apertar(aviso[1])
+            time.sleep(1)
+            _fechar_previa(jan)
+            return None
+        if time.time() > fim:
+            raise motor.ErroRoteiro("A Domínio não mostrou o relatório.")
+    time.sleep(2)
+    PASTA_ESOCIAL.mkdir(exist_ok=True)
+    destino = PASTA_ESOCIAL / f"{nome}_{time.strftime('%Y%m%d%H%M%S')}.pdf"
+    r = jan.rectangle()
+    mouse.click(coords=(r.left + PDF_PREVIA[0], r.top + PDF_PREVIA[1]))
+    motor.executar_passo({"acao": "salvar_como", "titulo": "Salvar em PDF", "campo": "destino", "timeout": 20},
+                         {"destino": str(destino)}, jan, salvar=True)
+    fim = time.time() + 30
+    while not destino.exists() and time.time() < fim:
+        time.sleep(1)
+    time.sleep(1)
+    _fechar_previa(jan)
+    if not destino.exists():
+        raise motor.ErroRoteiro("O PDF do relatório não foi salvo.")
+    return destino
+
+
+def consultar_reinf(jan, comp: str) -> Path | None:
+    """Botão Consultar Envio -> Listar -> Relatório (evento, situação e recibo) em PDF."""
+    _apertar(_filho(jan, "Button", texto="Consultar Envio", titulo_janela=TELA_REINF, timeout=5))
+    t = _janela_interna(jan, TELA_REINF_CONSULTA)
+    try:
+        _periodo(jan, t, comp)
+        _apertar(_filho(jan, "Button", texto="Listar", titulo_janela=TELA_REINF_CONSULTA, timeout=5))
+        time.sleep(4)
+        _apertar(_filho(jan, "Button", texto="Relatório", titulo_janela=TELA_REINF_CONSULTA, timeout=5))
+        return _salvar_previa_pdf(jan, f"reinf_{comp.replace('/', '')}", "[")
+    finally:
+        try:
+            _apertar(_filho(jan, "Button", texto="Fechar", titulo_janela=TELA_REINF_CONSULTA, timeout=3))
+        except Exception:  # noqa: BLE001
+            pass
+
+
+def transmitir_reinf(tarefa: dict) -> dict:
+    """EFD-Reinf do mês na Escrita Fiscal: "enviar" = Entrega completa (eventos R-4000 + fechamento);
+    "conferir" = só o relatório da Consulta Envio. A DCTFWeb nunca é transmitida aqui."""
+    import base64
+    import motor
+    p = tarefa["payload"]
+    comp, etapa = p["competencia"], p.get("etapa", "conferir")
+    if not re.fullmatch(r"\d{2}/\d{4}", comp) or etapa not in ("enviar", "conferir"):
+        raise RuntimeError(f"Pedido inválido: {comp} / {etapa}")
+    time.sleep(int(p.get("esperar_segundos", 0)))
+    _, jan = motor.janela_dominio(motor.carregar_roteiro(ROTEIRO))
+    dialogos = []
+    try:
+        trocar_modulo(jan, "Escrita Fiscal")
+        t = _abrir_reinf(jan)
+        _digitar_competencia(next(c for c in t.descendants() if c.class_name() == "PBEDIT190" and c.is_visible()), comp)
+        combo = next(c for c in t.descendants() if c.class_name() == "ComboBox" and c.is_visible())
+        if combo.window_text() != "Entrega completa":
+            combo.select("Entrega completa")
+        _marcar(t, "Sem movimentação no período", False)
+        if etapa == "enviar":
+            _apertar(_filho(jan, "Button", texto="Enviar", titulo_janela=TELA_REINF, timeout=5))
+            respostas = motor.carregar_roteiro(ROTEIRO).get("reinf_respostas", [])
+            fim = time.time() + 1800
+            while time.time() < fim:
+                dlg = _dialogos(jan)
+                if not dlg:
+                    time.sleep(2)
+                    continue
+                w, texto, botoes = dlg[0]
+                dialogos.append(texto)
+                log(f"   Domínio: {texto[:200]}")
+                regra = next((r for r in respostas if re.search(r["texto"], texto, re.I)), None)
+                if regra and regra["botao"] in botoes:
+                    _apertar(botoes[regra["botao"]])
+                    time.sleep(2)
+                    if regra.get("fim"):
+                        break
+                    continue
+                if set(botoes) <= {"OK", "Ok"} and re.search(r"sucesso|conclu|enviad|transmitid", texto, re.I):
+                    _apertar(next(iter(botoes.values())))
+                    break
+                raise motor.ErroRoteiro(f"A Domínio perguntou/avisou e o robô não sabe responder (deixei a tela como está): {texto}")
+            else:
+                raise motor.ErroRoteiro("O envio da EFD-Reinf não terminou em 30 minutos.")
+            time.sleep(int(os.environ.get("REINF_ESPERA_SEGUNDOS", "60")))
+        pdf = consultar_reinf(jan, comp)
+        return {"etapa": etapa, "enviou": etapa == "enviar", "dialogos": dialogos, "relatorio": pdf.name if pdf else None,
+                "consulta_pdf_base64": base64.b64encode(pdf.read_bytes()).decode() if pdf else None}
+    finally:
+        if not _dialogos(jan):
+            try:
+                _apertar(_filho(jan, "Button", texto="Fechar", titulo_janela=TELA_REINF, timeout=3))
+                time.sleep(1)
+                trocar_modulo(jan, "Folha")
+            except Exception:  # noqa: BLE001
+                log("   aviso: a Domínio ficou na Escrita Fiscal")
+
+
 EXECUTORES = {"gerar_adiantamento": gerar_adiantamento, "cadastrar_admissao": cadastrar_admissao,
               "importar_lancamentos": importar_lancamentos, "consultar_esocial": consultar_esocial,
-              "lancar_nota_aluguel": lancar_nota_aluguel, "transmitir_esocial_folha": transmitir_esocial_folha}
+              "lancar_nota_aluguel": lancar_nota_aluguel, "transmitir_esocial_folha": transmitir_esocial_folha,
+              "transmitir_reinf": transmitir_reinf}
 
 
 def processar_tarefa() -> bool:

@@ -15,6 +15,7 @@ use App\Services\EsocialStatusFolha;
 use App\Services\FolhaService;
 use App\Services\FuncionarioSync;
 use App\Services\Notificador;
+use App\Services\ReinfStatus;
 use App\Support\Br;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -87,6 +88,14 @@ class AgenteController extends Controller
                 $folha->update(['esocial_status' => 'erro', 'esocial_mensagem' => 'Não consegui ler o retorno do robô: '.$e->getMessage()]);
             }
             $tarefa->update(['resultado' => array_diff_key($dados['resultado'] ?? [], ['status_pdf_base64' => 1])]);
+        }
+        if ($tarefa->tipo === 'transmitir_reinf' && ($al = Aluguel::find($tarefa->payload['aluguel_id'] ?? 0))) {
+            try {
+                ReinfStatus::retorno($al, $tarefa, $dados['sucesso'], $dados['mensagem'] ?? null, $dados['resultado'] ?? []);
+            } catch (\Throwable $e) {
+                $al->update(['reinf_status' => 'erro', 'reinf_mensagem' => 'Não consegui ler o retorno do robô: '.$e->getMessage()]);
+            }
+            $tarefa->update(['resultado' => array_diff_key($dados['resultado'] ?? [], ['consulta_pdf_base64' => 1])]);
         }
         if ($tarefa->tipo === 'consultar_esocial') {
             $dados['sucesso']

@@ -7,6 +7,7 @@ use App\Models\TarefaAgente;
 use App\Services\DominioTxtNotaAluguel;
 use App\Services\EsocialConsultas;
 use App\Services\LeitorAluguel;
+use App\Services\ReinfStatus;
 use App\Support\Br;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -74,6 +75,33 @@ class AluguelController extends Controller
         }
 
         return redirect()->route('alugueis.index', ['competencia' => $a->competencia])->with('msg', 'Enviado ao robô: ele lança a nota na Escrita Fiscal (sem transmitir o EFD-Reinf).');
+    }
+
+    /** EFD-Reinf do mês: "enviar" = Entrega completa na Escrita Fiscal (R-4010 + fechamento R-4099) e conferir; "conferir" só confere. */
+    public function reinf(Request $request)
+    {
+        $request->validate(['competencia' => ['required', 'regex:/^\d{2}\/\d{4}$/'], 'acao' => 'required|in:enviar,conferir']);
+        $a = Aluguel::firstWhere('competencia', $request->input('competencia'));
+        $voltar = redirect()->route('alugueis.index', ['competencia' => $request->input('competencia')]);
+        if (! $a) {
+            return $voltar->withErrors(['aluguel' => 'Lance o aluguel desta competência antes da EFD-Reinf.']);
+        }
+        $acao = $request->input('acao');
+        if ($acao === 'enviar' && $a->status !== 'lancado') {
+            return $voltar->withErrors(['aluguel' => 'A nota do aluguel ainda não está lançada na Escrita Fiscal.']);
+        }
+        if (in_array($a->reinf_status, ['na_fila', 'aguardando'], true)) {
+            return $voltar->withErrors(['aluguel' => 'O robô já está cuidando da EFD-Reinf deste mês; aguarde.']);
+        }
+        if ($acao === 'enviar' && $a->reinf_status === 'transmitido') {
+            return $voltar->withErrors(['aluguel' => 'A EFD-Reinf deste mês já foi transmitida e conferida.']);
+        }
+        ReinfStatus::enfileirar($a, $acao === 'enviar' ? 'enviar' : 'conferir', $acao, $request->user()->name);
+        $a->update(['reinf_status' => 'na_fila', 'reinf_tentativas' => 0, 'reinf_mensagem' => $acao === 'enviar'
+            ? 'Aguardando o robô transmitir a EFD-Reinf (Entrega completa: R-4010 e fechamento R-4099). A DCTFWeb continua com você.'
+            : 'Aguardando o robô conferir a EFD-Reinf na Domínio.'] + ($acao === 'enviar' ? ['reinf_enviado_por' => $request->user()->name] : []));
+
+        return $voltar->with('msg', $acao === 'enviar' ? 'Enviado ao robô: ele transmite a EFD-Reinf e confere sozinho.' : 'Enviado ao robô: ele confere a EFD-Reinf.');
     }
 
     /** Coloca a nota na fila do robô. Devolve a mensagem de erro, ou null se enviou. */

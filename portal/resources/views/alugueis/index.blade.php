@@ -103,11 +103,40 @@
   @endif
 </form>
 
+@if ($a->exists)
+<div class="card">
+  <h2 style="margin-top:0">EFD-Reinf {{ $a->competencia }}</h2>
+  @php $rTag = ['transmitido' => 'verde', 'na_fila' => 'azul', 'aguardando' => 'azul', 'erro' => 'vermelha', 'pendente' => 'amarela']; $rOcupado = in_array($a->reinf_status, ['na_fila', 'aguardando'], true); @endphp
+  <p style="margin-top:0">
+    @if ($a->reinf_status)<span class="tag {{ $rTag[$a->reinf_status] ?? '' }}">{{ \App\Services\ReinfStatus::ROTULOS[$a->reinf_status] ?? $a->reinf_status }}</span>@else<span class="tag amarela">Não transmitida</span>@endif
+    {{ $a->reinf_mensagem ?? 'O robô faz a Entrega completa do mês na Escrita Fiscal (R-4010 do aluguel e fechamento R-4099) e confere o recibo. A DCTFWeb continua com você.' }}
+    @if ($a->reinf_conferido_em)<br><small style="color:var(--mut)">Conferido em {{ $a->reinf_conferido_em->format('d/m/Y H:i') }}@if ($a->reinf_enviado_em) · transmitido em {{ $a->reinf_enviado_em->format('d/m/Y H:i') }} por {{ $a->reinf_enviado_por }}@endif.</small>@endif
+  </p>
+  <form method="post" action="{{ route('alugueis.reinf') }}" style="display:flex;gap:10px;flex-wrap:wrap">@csrf
+    <input type="hidden" name="competencia" value="{{ $a->competencia }}">
+    @if (! $rOcupado && $a->reinf_status !== 'transmitido' && $a->status === 'lancado')
+      <button class="btn ok" name="acao" value="enviar"
+        onclick="return confirm('Transmitir a EFD-Reinf de {{ $a->competencia }} (Entrega completa do mês: R-4010 e fechamento R-4099)? Vai para a Receita e não dá para desfazer pelo portal. A DCTFWeb NÃO será transmitida.')">Transmitir EFD-Reinf</button>
+    @endif
+    @unless ($rOcupado)<button class="btn" name="acao" value="conferir">{{ $a->reinf_conferido_em ? 'Conferir de novo' : 'Só conferir' }}</button>@endunless
+  </form>
+  @if ($a->reinf_eventos)
+    <table style="margin-top:10px"><tr><th>Evento</th><th>Tipo</th><th>Situação</th><th>Recibo</th><th>Enviado</th></tr>
+      @foreach ($a->reinf_eventos as $e)
+        <tr><td>{{ $e['evento'] }} - {{ $e['descricao'] }}</td><td>{{ $e['tipo'] }}</td>
+          <td><span class="tag {{ \App\Services\ReinfStatus::sucesso($e['situacao']) ? 'verde' : 'vermelha' }}">{{ $e['situacao'] }}</span></td>
+          <td style="font-size:12px">{{ $e['recibo'] ?: '—' }}</td><td style="font-size:12px">{{ $e['enviado_em'] }}</td></tr>
+      @endforeach
+    </table>
+  @endif
+</div>
+@endif
+
 @if ($tarefa)<p style="color:var(--mut);font-size:13px">Robô: tarefa #{{ $tarefa->id }} — {{ $tarefa->status }} @if ($tarefa->mensagem)· {{ $tarefa->mensagem }}@endif</p>@endif
 
 <div class="card"><h2 style="margin-top:0">Meses</h2>
   @forelse ($lista as $x)
-    <a class="btn" style="margin:0 6px 6px 0" href="{{ route('alugueis.index', ['competencia' => $x->competencia]) }}">{{ $x->competencia }} · {{ Aluguel::STATUS[$x->status] ?? $x->status }}</a>
+    <a class="btn" style="margin:0 6px 6px 0" href="{{ route('alugueis.index', ['competencia' => $x->competencia]) }}">{{ $x->competencia }} · {{ Aluguel::STATUS[$x->status] ?? $x->status }} · Reinf: {{ \App\Services\ReinfStatus::ROTULOS[$x->reinf_status] ?? 'não transmitida' }}</a>
   @empty
     <p style="margin:0;color:var(--mut)">Nenhum ainda.</p>
   @endforelse
