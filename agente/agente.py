@@ -557,6 +557,8 @@ def _dialogos(jan) -> list:
             filhos = [c for c in w.descendants() if c.is_visible()]
             botoes = {c.window_text().replace("&", ""): c for c in filhos if c.class_name() == "Button" and c.window_text()}
             texto = " ".join(c.window_text() for c in filhos if c.class_name() != "Button" and c.window_text())
+            if not botoes:                                   # janela de progresso ("Aguarde..."): não é pergunta
+                continue
             achados.append((w, f"{w.window_text()}: {texto}".strip(), botoes))
         except Exception:  # noqa: BLE001
             continue
@@ -749,7 +751,12 @@ def _salvar_previa_pdf(jan, nome: str, titulo_previa: str) -> Path | None:
             return None
         if time.time() > fim:
             raise motor.ErroRoteiro("A Domínio não mostrou o relatório.")
-    time.sleep(2)
+    aviso = _mensagem_dominio(jan, 4)                         # a prévia vazia abre antes do "Sem dados"
+    if aviso and re.search(r"sem dados", aviso[0], re.I):
+        _apertar(aviso[1])
+        time.sleep(1)
+        _fechar_previa(jan)
+        return None
     PASTA_ESOCIAL.mkdir(exist_ok=True)
     destino = PASTA_ESOCIAL / f"{nome}_{time.strftime('%Y%m%d%H%M%S')}.pdf"
     r = jan.rectangle()
@@ -777,10 +784,12 @@ def consultar_reinf(jan, comp: str) -> Path | None:
         _apertar(_filho(jan, "Button", texto="Relatório", titulo_janela=TELA_REINF_CONSULTA, timeout=5))
         return _salvar_previa_pdf(jan, f"reinf_{comp.replace('/', '')}", "[")
     finally:
-        try:
-            _apertar(_filho(jan, "Button", texto="Fechar", titulo_janela=TELA_REINF_CONSULTA, timeout=3))
-        except Exception:  # noqa: BLE001
-            pass
+        if not _dialogos(jan):                               # fechar com diálogo aberto derruba a Domínio
+            try:
+                _fechar_previa(jan)
+                _apertar(_filho(jan, "Button", texto="Fechar", titulo_janela=TELA_REINF_CONSULTA, timeout=3))
+            except Exception:  # noqa: BLE001
+                pass
 
 
 def transmitir_reinf(tarefa: dict) -> dict:
@@ -815,6 +824,10 @@ def transmitir_reinf(tarefa: dict) -> dict:
                 w, texto, botoes = dlg[0]
                 dialogos.append(texto)
                 log(f"   Domínio: {texto[:200]}")
+                if re.search(r"saldo dos impostos n.o foram calculados", texto, re.I):
+                    _apertar(botoes.get("OK") or next(iter(botoes.values())))
+                    raise motor.ErroRoteiro(f"A Domínio avisou que a apuração de {comp} não foi calculada; nada foi enviado. "
+                                            "Faça Movimentos > Apuração na Escrita Fiscal e transmita de novo.")
                 regra = next((r for r in respostas if re.search(r["texto"], texto, re.I)), None)
                 if regra and regra["botao"] in botoes:
                     _apertar(botoes[regra["botao"]])
