@@ -19,7 +19,7 @@ class EsocialFolhaTest extends TestCase
         ."RELAÇÃO DE STATUS DOS EVENTOS PERIÓDICOS\nPagamentoRemuneraçãoCompetênciaCPFNomeMatricula eSocial\n"
         ."34\t10/2026111.444.777-35FULANO SEM FOLHA34\n"
         ."20\tValidadoValidado10/2026222.333.444-05BELTRANO DA SILVA20\n"
-        ."5\tEm processamentoValidado10/2026333.444.555-50CICLANO DE SOUZA5\n";
+        ."5\tEm ProcessamentoValidado10/2026333.444.555-50CICLANO DE SOUZA5\n";
 
     private const NADA = "Competência:10/2026\n20\t10/2026222.333.444-05BELTRANO DA SILVA20\n5\t10/2026333.444.555-50CICLANO DE SOUZA5\n";
 
@@ -53,10 +53,10 @@ class EsocialFolhaTest extends TestCase
         $this->assertCount(3, $l['empregados']);
         $this->assertSame(['codigo' => '20', 'nome' => 'BELTRANO DA SILVA', 'cpf' => '222.333.444-05', 'remuneracao' => 'Validado', 'pagamento' => 'Validado'], $l['empregados'][1]);
         $this->assertSame('', $l['empregados'][0]['remuneracao']);
-        $this->assertSame('Em processamento', $l['empregados'][2]['pagamento']);
+        $this->assertSame('Em Processamento', $l['empregados'][2]['pagamento']);
         $this->assertSame(['status' => 'aguardando', 'total' => 2, 'validados' => 1, 'com_erro' => 0], EsocialStatusFolha::situacao($l['empregados']));
         $this->assertSame('nada', EsocialStatusFolha::situacao(EsocialStatusFolha::lerTexto(self::NADA)['empregados'])['status']);
-        $rej = str_replace('Em processamentoValidado', 'RejeitadoValidado', self::TEXTO);
+        $rej = str_replace('Em ProcessamentoValidado', 'RejeitadoValidado', self::TEXTO);
         $this->assertSame('erro', EsocialStatusFolha::situacao(EsocialStatusFolha::lerTexto($rej)['empregados'])['status']);
     }
 
@@ -79,7 +79,7 @@ class EsocialFolhaTest extends TestCase
         $this->assertSame(EsocialStatusFolha::ESPERA_SEGUNDOS, $this->ultima()->payload['esperar_segundos']);
 
         // 3. todos validados: o portal manda o fechamento sozinho
-        $ok = str_replace('Em processamentoValidado', 'ValidadoValidado', self::TEXTO);
+        $ok = str_replace('Em ProcessamentoValidado', 'ValidadoValidado', self::TEXTO);
         $this->robo($f, $ok);
         $this->assertSame('fechamento', $this->ultima()->payload['etapa']);
         $this->assertSame('na_fila', $f->fresh()->esocial_status);
@@ -113,7 +113,7 @@ class EsocialFolhaTest extends TestCase
 
         $g = $this->folha('Folha Mensal', '09/2026');
         $this->post("/folha/{$g->id}/esocial", ['acao' => 'transmitir']);
-        $this->robo($g, str_replace('Em processamentoValidado', 'RejeitadoValidado', self::TEXTO));
+        $this->robo($g, str_replace('Em ProcessamentoValidado', 'RejeitadoValidado', self::TEXTO));
         $this->assertSame('erro', $g->fresh()->esocial_status);
         $this->assertNotSame('fechamento', $this->ultima()->payload['etapa']);
     }

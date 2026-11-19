@@ -34,7 +34,7 @@ class EsocialStatusFolha
             if (! preg_match('/^\s*(\d+)\s+(.*?)(\d{2}\/\d{4})(\d{3}\.\d{3}\.\d{3}-\d{2})(.+?)\s*\d*\s*$/u', $linha, $m)) {
                 continue;
             }
-            $st = array_values(array_filter(array_map('trim', preg_split('/(?=\p{Lu})/u', trim($m[2]))), 'strlen'));
+            $st = array_values(array_filter(array_map('trim', preg_split('/(?<=\p{Ll})(?=\p{Lu})/u', trim($m[2]))), 'strlen'));
             // o PDF traz Pagamento antes de Remuneração (colunas da direita para a esquerda)
             $pagamento = count($st) === 2 ? $st[0] : '';
             $remuneracao = count($st) === 2 ? $st[1] : ($st[0] ?? '');
