@@ -123,13 +123,13 @@ class ContaAzul
      * Contas a pagar (parcelas de despesa) com vencimento entre $de e $ate (AAAA-MM-DD), todas as páginas.
      * GET /v1/financeiro/eventos-financeiros/contas-a-pagar/buscar
      */
-    public function contasAPagar(string $de, string $ate): array
+    public function contasAPagar(string $de, string $ate, ?string $contaFinanceira = null): array
     {
         $itens = [];
         for ($pagina = 1; $pagina <= 25; $pagina++) {
             $r = $this->chamar('get', '/v1/financeiro/eventos-financeiros/contas-a-pagar/buscar', [
                 'pagina' => $pagina, 'tamanho_pagina' => 200, 'data_vencimento_de' => $de, 'data_vencimento_ate' => $ate,
-            ]);
+            ] + ($contaFinanceira ? ['ids_contas_financeiras' => $contaFinanceira] : []));
             $itens = array_merge($itens, $r['itens'] ?? []);
             if (count($r['itens'] ?? []) < 200 || count($itens) >= (int) ($r['itens_totais'] ?? 0)) {
                 break;
@@ -147,6 +147,15 @@ class ContaAzul
             'em_aberto' => round((float) ($i['nao_pago'] ?? 0), 2),
             'status' => (string) ($i['status_traduzido'] ?? $i['status'] ?? ''),
         ])->sortBy([['vencimento', 'asc'], ['fornecedor', 'asc']])->values()->all();
+    }
+
+    /** Cartões de crédito ativos (contas financeiras do tipo CARTAO_CREDITO): [id => nome]. */
+    public function cartoesCredito(): array
+    {
+        $itens = $this->chamar('get', '/v1/conta-financeira', ['pagina' => 1, 'tamanho_pagina' => 100, 'apenas_ativo' => 'true'])['itens'] ?? [];
+
+        return collect($itens)->filter(fn ($c) => ($c['tipo'] ?? '') === 'CARTAO_CREDITO')
+            ->mapWithKeys(fn ($c) => [(string) $c['id'] => trim(preg_replace('/\s+/', ' ', (string) $c['nome']))])->all();
     }
 
     public function categoriasDespesa(): array
