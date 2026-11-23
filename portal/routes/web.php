@@ -51,6 +51,7 @@ Route::middleware('auth')->group(function () {
 
     Route::post('/folha/{folha}/esocial', [FolhaController::class, 'esocial'])->name('folha.esocial');
     Route::post('/folha/{folha}/contaazul', [ContaAzulController::class, 'enviarFolha'])->name('folha.contaazul');
+    Route::get('/financeiro', [\App\Http\Controllers\FinanceiroController::class, 'index'])->name('financeiro.index');
     Route::get('/contaazul', [ContaAzulController::class, 'index'])->name('contaazul');
     Route::post('/contaazul', [ContaAzulController::class, 'salvar'])->name('contaazul.salvar');
     Route::get('/contaazul/conectar', [ContaAzulController::class, 'conectar'])->name('contaazul.conectar');

@@ -44,6 +44,7 @@
     <a href="{{ route('lancamentos.index') }}">Lançamentos</a>
     <a href="{{ route('folha.index') }}">Folha</a>
     <a href="{{ route('alugueis.index') }}">Aluguel</a>
+    <a href="{{ route('financeiro.index') }}">Financeiro</a>
     <a href="{{ route('funcionarios.index') }}">Funcionários</a>
     <a href="{{ route('funcoes.index') }}">Funções</a>
     <a href="{{ route('configuracoes') }}">Configurações</a>

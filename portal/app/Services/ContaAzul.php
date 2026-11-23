@@ -119,6 +119,36 @@ class ContaAzul
         return $r->json() ?? [];
     }
 
+    /**
+     * Contas a pagar (parcelas de despesa) com vencimento entre $de e $ate (AAAA-MM-DD), todas as páginas.
+     * GET /v1/financeiro/eventos-financeiros/contas-a-pagar/buscar
+     */
+    public function contasAPagar(string $de, string $ate): array
+    {
+        $itens = [];
+        for ($pagina = 1; $pagina <= 25; $pagina++) {
+            $r = $this->chamar('get', '/v1/financeiro/eventos-financeiros/contas-a-pagar/buscar', [
+                'pagina' => $pagina, 'tamanho_pagina' => 200, 'data_vencimento_de' => $de, 'data_vencimento_ate' => $ate,
+            ]);
+            $itens = array_merge($itens, $r['itens'] ?? []);
+            if (count($r['itens'] ?? []) < 200 || count($itens) >= (int) ($r['itens_totais'] ?? 0)) {
+                break;
+            }
+        }
+
+        return collect($itens)->map(fn ($i) => [
+            'id' => (string) ($i['id'] ?? ''),
+            'descricao' => (string) ($i['descricao'] ?? ''),
+            'vencimento' => substr((string) ($i['data_vencimento'] ?? ''), 0, 10),
+            'fornecedor' => (string) ($i['fornecedor']['nome'] ?? ''),
+            'categoria' => collect($i['categorias'] ?? [])->pluck('nome')->filter()->implode(', '),
+            'total' => round((float) ($i['total'] ?? 0), 2),
+            'pago' => round((float) ($i['pago'] ?? 0), 2),
+            'em_aberto' => round((float) ($i['nao_pago'] ?? 0), 2),
+            'status' => (string) ($i['status_traduzido'] ?? $i['status'] ?? ''),
+        ])->sortBy([['vencimento', 'asc'], ['fornecedor', 'asc']])->values()->all();
+    }
+
     public function categoriasDespesa(): array
     {
         $itens = $this->chamar('get', '/v1/categorias', ['tipo' => 'DESPESA', 'pagina' => 1, 'tamanho_pagina' => 500])['itens'] ?? [];
